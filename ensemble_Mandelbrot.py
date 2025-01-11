@@ -4,46 +4,90 @@ from math import sqrt
 
 #---------------------------------------- Modèle ----------------------------------------#
 
-class Mandelbrot():
-    """Classe modélisant l'ensemble de Mandelbrot pour une zone du plan donnée
-    et un nombre de points en abscisse et en ordonnée sur cette zone
+class Point():
+    """Classe des coordonnées x et y (flottantes) d'un point du plan"""
+
+    def __init__(self, x=0, y=0):
+        self.x = x
+        self.y = y
+
+
+class DimPix():
+    """Classe des dimensions x et y (entières) d'une image en pixels"""
+
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+
+
+class Zone():
+    """Classe de données géométriques modélisant une zone de représentation
+
+    Un objet de cette classe possède :
+    - un objet de type DimPix, contenant les dimensions en pixels de l'image de représentation sous-jacente
+    - deux points A et B correspondant au point haut gauche et au point bas droit de la zone (l'ordonnée
+      du point B est contrainte pour respecter les dimensions de l'image)
+    - des relations de passage entre les pixels et les points du plan grâce à trois coefficients et des méthodes
     """
 
-    def __init__(self, tuple_nb_points, tuple_zone_init, n_iter=100):
-        self.nb_points_x = tuple_nb_points[0]
-        self.nb_points_y = tuple_nb_points[1]
-        self.K = self.nb_points_y / self.nb_points_x  # rapport des dimensions, pour les pixels ET pour la zone de représentation
-        self.init_zone_repr(tuple_zone_init)
-        self.init_ensemble()
-        self.n_iter = n_iter
+    def __init__(self, nb_points_x, nb_points_y, xa, xb, ya):
+        # Dimensions en pixels de la zone
+        self.dim_pix = DimPix(nb_points_x, nb_points_y)
+        self.K = nb_points_y / nb_points_x  # rapport des dimensions, pour l'image ET la zone de représentation
+        # Bornes de la zone
+        self.A = Point()  # point haut gauche
+        self.B = Point()  # point bas droit
+        self.init_bornes(xa, xb, ya)
 
-    def init_zone_repr(self, tuple_zone_repr):
-        self.x_min = tuple_zone_repr[0]
-        self.x_max = tuple_zone_repr[1]
-        self.Kxy = (self.x_max - self.x_min) / self.nb_points_x  # Kxy == Kx == Ky
-        self.y_min = tuple_zone_repr[2]
-        self.y_max = self.K * (self.x_max - self.x_min) + self.y_min  # Valeur contrainte par le rapport des dimensions
+    def init_bornes(self, xa, xb, ya):
+        self.Kxy = (xb - xa) / self.dim_pix.x  # Kxy == Kx == Ky
+        # Axes des abscisses
+        self.A.x = xa
+        self.B.x = xb
+        # Axes des ordonnées
+        self.A.y = ya
+        self.B.y = self.K * (xb - xa) + ya  # Valeur contrainte par le rapport des dimensions
+
+    def maj_bornes(self, nxa, nxb, nya):
+        xa, xb, ya = self.pix_to_x(nxa), self.pix_to_x(nxb), self.pix_to_y(nya)
+        self.init_bornes(xa, xb, ya)
+
+    def pix_to_x(self, px):
+        return self.Kxy * px + self.A.x
+
+    def pix_to_y(self, py):
+        return self.Kxy * py + self.A.y        
+
+
+class Mandelbrot():
+    """Classe modélisant l'ensemble de Mandelbrot
+
+    L'ensemble est représenté sur une zone du plan et les points qui lui appartiennent
+    sont déterminés à partir du calcul d'une suite de récurrence avec au plus n_iter itérations
+    """
+
+    def __init__(self, nb_points_x, nb_points_y, xa, xb, ya, n_iter=100):
+        self.zone = Zone(nb_points_x, nb_points_y, xa, xb, ya)
+        self.n_iter = n_iter
+        self.init_ensemble()
 
     def init_ensemble(self):
-        self.ensemble = [False]*self.nb_points_y
-        for ny in range(self.nb_points_y):
-            self.ensemble[ny] = [False]*self.nb_points_x
-
-    def maj_zone_repr(self, nx_min, nx_max, ny_min):
-        tuple_zone_repr = (self.pix_to_x(nx_min), self.pix_to_x(nx_max), self.pix_to_y(ny_min))
-        self.init_zone_repr(tuple_zone_repr)
+        self.ensemble = [False]*self.zone.dim_pix.y
+        for ny in range(self.zone.dim_pix.y):
+            self.ensemble[ny] = [False]*self.zone.dim_pix.x
 
     def get_ensemble(self):
         """Méthode déterminant l'ensemble de Mandelbrot pour la zone de représentation courante
 
-        Attribue un booléen à tous les points de la zone selon que le point appartient
-        à l'ensemble de Mandelbrot ou non
+        Attribue un booléen à tous les pixels de la zone selon que la relation de récurrence
+        zn+1 = zn * zn + c converge ou non. Le critère de convergence est le non-dépassement
+        de la valeur 2 en module après n_iter itérations
         """
         # Parcours des points pour la zone courante
-        for ny in range(self.nb_points_y):
-            y = self.Kxy * ny + self.y_min  # ordonnée du point courant
-            for nx in range(self.nb_points_x):
-                x = self.Kxy * nx + self.x_min  # abscisse du point courant
+        for ny in range(self.zone.dim_pix.y):
+            y = self.zone.Kxy * ny + self.zone.A.y  # ordonnée du point courant
+            for nx in range(self.zone.dim_pix.x):
+                x = self.zone.Kxy * nx + self.zone.A.x  # abscisse du point courant
                 # Premier test d'appartenance (à la cardioïde ou au bourgeon principal) 
                 p = sqrt((x-0.25)**2 + y**2)
                 if (x < p-2*p**2+0.25) or ((x+1)**2+y**2 < 1./16):
@@ -65,12 +109,6 @@ class Mandelbrot():
             appartient = True
         return appartient
 
-    def pix_to_x(self, px):
-        return self.Kxy * px + self.x_min
-
-    def pix_to_y(self, py):
-        return self.Kxy * py + self.y_min        
-
 
 #---------------------------------------- Callbacks ----------------------------------------#
 
@@ -86,12 +124,12 @@ def cadre_zoom(event):
     global px_max
     px_max = event.x
     taille = px_max - px_min
-    canevas.coords(iD_cadre_zoom, px_min, py_min, px_max, py_min+mandel.K*taille) # on contraint le cadre à respecter les proportions de la fenêtre
+    canevas.coords(iD_cadre_zoom, px_min, py_min, px_max, py_min+mandel.zone.K*taille) # on contraint le cadre à respecter les proportions de la fenêtre
 
 def zoom(event):
     "Callback effectuant un zoom sur la zone sélectionnée de la région actuelle"
     # Modification du modèle
-    mandel.maj_zone_repr(px_min, px_max, py_min)
+    mandel.zone.maj_bornes(px_min, px_max, py_min)
     mandel.get_ensemble()
     # Tracé
     canevas.delete(ALL)
@@ -109,8 +147,8 @@ def trace_ensemble(mandel):
 
 # Paramètres
 largeur, hauteur = 800, 800
-nb_points = (largeur, hauteur)
-zone_init = (-2., 1., -1.5) # (x_min, x_max, y_min), y_max est contraint par le rapport de longueur des axes
+xa, xb = -2., 1.
+ya = -1.5
 
 # Création des éléments graphiques
 fenetre = Tk()
@@ -123,7 +161,7 @@ canevas.bind("<Button1-Motion>", cadre_zoom)
 canevas.bind("<Button1-ButtonRelease>", zoom)
 
 # Tracé
-mandel = Mandelbrot(nb_points, zone_init)
+mandel = Mandelbrot(largeur, hauteur, xa, xb, ya)
 mandel.get_ensemble()
 trace_ensemble(mandel)
 
