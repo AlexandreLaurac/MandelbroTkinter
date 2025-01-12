@@ -1,5 +1,5 @@
 from tkinter import *
-from math import sqrt
+from math import sqrt, copysign
 
 
 #---------------------------------------- Modèle ----------------------------------------#
@@ -41,22 +41,22 @@ class Zone():
 
     def init_bornes(self, xa, xb, ya):
         self.Kxy = (xb - xa) / self.dim_pix.x  # Kxy == Kx == Ky
-        # Axes des abscisses
+        # Point A
         self.A.x = xa
-        self.B.x = xb
-        # Axes des ordonnées
         self.A.y = ya
-        self.B.y = self.K * (xb - xa) + ya  # Valeur contrainte par le rapport des dimensions
+        # Point B
+        self.B.x = xb
+        self.B.y = -self.K * (xb - xa) + ya  # Valeur contrainte par le rapport des dimensions (et signe - : voir plus bas)
 
-    def maj_bornes(self, nxa, nxb, nya):
-        xa, xb, ya = self.pix_to_x(nxa), self.pix_to_x(nxb), self.pix_to_y(nya)
+    def maj_bornes(self, pxa, pxb, pya):
+        xa, xb, ya = self.pix_to_x(pxa), self.pix_to_x(pxb), self.pix_to_y(pya)
         self.init_bornes(xa, xb, ya)
 
     def pix_to_x(self, px):
         return self.Kxy * px + self.A.x
 
     def pix_to_y(self, py):
-        return self.Kxy * py + self.A.y        
+        return -self.Kxy * py + self.A.y  # signe - car l'axe des ordonnées en pixels pointe vers le bas
 
 
 class Mandelbrot():
@@ -85,9 +85,9 @@ class Mandelbrot():
         """
         # Parcours des points pour la zone courante
         for ny in range(self.zone.dim_pix.y):
-            y = self.zone.Kxy * ny + self.zone.A.y  # ordonnée du point courant
+            y = self.zone.pix_to_y(ny)  # ordonnée du point courant
             for nx in range(self.zone.dim_pix.x):
-                x = self.zone.Kxy * nx + self.zone.A.x  # abscisse du point courant
+                x = self.zone.pix_to_x(nx)  # abscisse du point courant
                 # Premier test d'appartenance (à la cardioïde ou au bourgeon principal) 
                 p = sqrt((x-0.25)**2 + y**2)
                 if (x < p-2*p**2+0.25) or ((x+1)**2+y**2 < 1./16):
@@ -113,23 +113,31 @@ class Mandelbrot():
 #---------------------------------------- Callbacks ----------------------------------------#
 
 def clic(event):
-    "Callback destinée à définir le coin supérieur haut gauche du cadre de zoom"
-    global px_min, py_min, iD_cadre_zoom
-    px_min = event.x
-    py_min = event.y
-    iD_cadre_zoom = canevas.create_rectangle(px_min, py_min, px_min, py_min, outline='red')
+    "Callback définissant le premier coin du cadre de zoom par clic de la souris"
+    global px1, py1, iD_cadre_zoom
+    px1, py1 = event.x, event.y  # Coordonnées du premier point cliqué
+    iD_cadre_zoom = canevas.create_rectangle(px1, py1, px1, py1, outline='red')
 
 def cadre_zoom(event):
-    "Callback dessinant le cadre de zoom"
-    global px_max
-    px_max = event.x
-    taille = px_max - px_min
-    canevas.coords(iD_cadre_zoom, px_min, py_min, px_max, py_min+mandel.zone.K*taille) # on contraint le cadre à respecter les proportions de la fenêtre
+    "Callback définissant le deuxième coin du cadre de zoom par déplacement de la souris"
+    global px2, py2
+    # Abscisse du deuxième point obtenu par déplacement de la souris
+    px2 = event.x
+    # Ordonnée du deuxième point, respectant les proportions de la fenêtre et le déplacement de la souris
+    taille_abs = abs(px2 - px1)
+    signe_y = copysign(1, event.y - py1)
+    py2 = py1 + signe_y * mandel.zone.K * taille_abs
+    # Tracé du cadre
+    canevas.coords(iD_cadre_zoom, px1, py1, px2, py2)
 
 def zoom(event):
     "Callback effectuant un zoom sur la zone sélectionnée de la région actuelle"
+    global px1, px2
+    # On réordonne les valeurs des pixels pour avoir A et B aux bons endroits
+    pxa, pya = (min(px1, px2), min(py1, py2))  # sur l'image, A (point haut gauche) a les plus petites valeurs en pixels
+    pxb = max(px1, px2)  # B (point bas droit) a la plus grande abscisse en pixels
     # Modification du modèle
-    mandel.zone.maj_bornes(px_min, px_max, py_min)
+    mandel.zone.maj_bornes(pxa, pxb, pya)
     mandel.get_ensemble()
     # Tracé
     canevas.delete(ALL)
@@ -147,8 +155,8 @@ def trace_ensemble(mandel):
 
 # Paramètres
 largeur, hauteur = 800, 800
-xa, xb = -2., 1.
-ya = -1.5
+xa, ya = (-2.0, 1.5) # point haut gauche 
+xb = 1.0             # abscisse du point bas droite
 
 # Création des éléments graphiques
 fenetre = Tk()
