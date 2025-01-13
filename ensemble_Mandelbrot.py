@@ -76,7 +76,7 @@ class Mandelbrot():
         for ny in range(self.zone.dim_pix.y):
             self.ensemble[ny] = [False]*self.zone.dim_pix.x
 
-    def get_ensemble(self):
+    def calcul_ensemble(self):
         """Méthode déterminant l'ensemble de Mandelbrot pour la zone de représentation courante
 
         Attribue un booléen à tous les pixels de la zone selon que la relation de récurrence
@@ -112,62 +112,76 @@ class Mandelbrot():
 
 #---------------------------------------- Vue ----------------------------------------#
 
-class Fenetre(Tk):
+class CanvasMandel(Canvas):
 
-    def __init__(self, largeur, hauteur, xa, xb, ya):
-        Tk.__init__(self)
-        # Création du canevas d'affichage
+    def __init__(self, parent, largeur, hauteur):
+        # Classe et widget parents
+        Canvas.__init__(self, parent, width=largeur, height=hauteur, bg='white')
+        self.parent = parent
+        # Dimensions du canevas
         self.largeur = largeur
         self.hauteur = hauteur
-        self.canevas = Canvas(self, width=largeur, height=hauteur, bg="white")
-        self.canevas.pack()
-        self.canevas.bind("<Button-1>", self.clic)
-        self.canevas.bind("<Button1-Motion>", self.cadre_zoom)
-        self.canevas.bind("<Button1-ButtonRelease>", self.zoom)
-        # Création d'un objet Mandelbrot
-        self.mandel = Mandelbrot(largeur, hauteur, xa, xb, ya)
+        self.K = hauteur / largeur  # idem que dans l'objet zone de la classe Mandelbrot
+        # Gestion des événements
+        self.bind("<Button-1>", self.clic)
+        self.bind("<Button1-Motion>", self.deplace)
+        self.bind("<Button1-ButtonRelease>", self.relache)
 
     def clic(self, event):
         "Callback définissant le premier coin du cadre de zoom par clic de la souris"
-        self.px1, self.py1 = event.x, event.y  # Coordonnées du premier point cliqué
-        self.iD_cadre_zoom = self.canevas.create_rectangle(self.px1, self.py1, self.px1, self.py1, outline='red')
+        self.px1, self.py1 = event.x, event.y
+        self.iD_cadre_zoom = self.create_rectangle(self.px1, self.py1, self.px1, self.py1, outline='red')
 
-    def cadre_zoom(self, event):
+    def deplace(self, event):
         "Callback définissant le deuxième coin du cadre de zoom par déplacement de la souris"
         # Abscisse du deuxième point obtenu par déplacement de la souris
         self.px2 = event.x
         # Ordonnée du deuxième point, respectant les proportions de la fenêtre et le déplacement de la souris
         taille_abs = abs(self.px2 - self.px1)
         signe_y = copysign(1, event.y - self.py1)
-        self.py2 = self.py1 + signe_y * self.mandel.zone.K * taille_abs
+        self.py2 = self.py1 + signe_y * self.K * taille_abs
         # Tracé du cadre
-        self.canevas.coords(self.iD_cadre_zoom, self.px1, self.py1, self.px2, self.py2)
+        self.coords(self.iD_cadre_zoom, self.px1, self.py1, self.px2, self.py2)
 
-    def zoom(self, event):
-        "Callback déclenchant le zoom sur la zone sélectionnée de la région actuelle"
+    def relache(self, event):
+        "Callback définissant le cadre de zoom définitif par relâchement de la souris"
         # On réordonne les valeurs des pixels pour avoir A et B aux bons endroits
         pxa, pya = (min(self.px1, self.px2), min(self.py1, self.py2))  # sur l'image, A (point haut gauche) a les plus petites valeurs en pixels
         pxb = max(self.px1, self.px2)  # B (point bas droit) a la plus grande abscisse en pixels
-        # Modification du modèle
-        self.mandel.zone.maj_bornes(pxa, pxb, pya)
-        self.mandel.get_ensemble()
-        # Tracé
-        self.canevas.delete(ALL)
-        self.trace_ensemble()
+        self.parent.zoom(pxa, pxb, pya)
 
-    def trace_ensemble(self):
+    def trace_ensemble(self, ensemble):
         "Fonction de tracé effectif de l'ensemble de Mandelbrot"
         for py in range(self.hauteur):
             for px in range(self.largeur):
-                if self.mandel.ensemble[py][px] == True:
-                    self.canevas.create_rectangle(px,py,px,py)
+                if ensemble[py][px] == True:
+                    self.create_rectangle(px,py,px,py)
+
+
+class Fenetre(Tk):
+
+    def __init__(self, largeur, hauteur, xa, xb, ya):
+        Tk.__init__(self)
+        # Création du canevas d'affichage
+        self.canevas = CanvasMandel(self, largeur, hauteur)
+        self.canevas.pack()
+        # Création d'un objet Mandelbrot
+        self.mandel = Mandelbrot(largeur, hauteur, xa, xb, ya)
 
     def lancement(self):
         # Tracé de l'ensemble
-        self.mandel.get_ensemble()
-        self.trace_ensemble()
+        self.mandel.calcul_ensemble()
+        self.canevas.trace_ensemble(self.mandel.ensemble)
         # Lancement de la boucle d'événements
-        self.mainloop()        
+        self.mainloop()      
+
+    def zoom(self, pxa, pxb, pya):
+        # Modification du modèle
+        self.mandel.zone.maj_bornes(pxa, pxb, pya)
+        self.mandel.calcul_ensemble()
+        # Tracé
+        self.canevas.delete(ALL)
+        self.canevas.trace_ensemble(self.mandel.ensemble)  
 
 
 #---------------------------------- Programme principal ----------------------------------#
