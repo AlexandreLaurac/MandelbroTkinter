@@ -48,8 +48,20 @@ class Zone():
         self.B.x = xb
         self.B.y = -self.K * (xb - xa) + ya  # Valeur contrainte par le rapport des dimensions (et signe - : voir plus bas)
 
-    def maj_bornes(self, pxa, pxb, pya):
+    def maj_bornes_zoom(self, pxa, pxb, pya):
+        """Calcul de nouvelles bornes à partir de pixels de zoom"""
         xa, xb, ya = self.pix_to_x(pxa), self.pix_to_x(pxb), self.pix_to_y(pya)
+        self.init_bornes(xa, xb, ya)
+
+    def maj_bornes_dezoom(self, pxa, pxb, pya, pyb):
+        """Calcul des bornes précédentes à partir des bornes actuelles et des pixels de zoom ayant fait
+        passer des premières aux secondes (résolution d'un système de deux équations à deux inconnues)
+        """
+        Kx = (self.B.x - self.A.x) / (pxb - pxa)
+        xa = self.A.x - Kx * pxa
+        xb = xa +  Kx * self.dim_pix.x
+        Ky = (self.B.y - self.A.y) / (pyb - pya)
+        ya = self.A.y - Ky * pya
         self.init_bornes(xa, xb, ya)
 
     def pix_to_x(self, px):
@@ -122,15 +134,24 @@ class CanvasMandel(Canvas):
         self.largeur = largeur
         self.hauteur = hauteur
         self.K = hauteur / largeur  # idem que dans l'objet zone de la classe Mandelbrot
+        # Stockage des bornes de zoom en pixels pour le retour en arrière par ctrl-z
+        self.stockage_bornes = []
         # Gestion des événements
         self.bind("<Button-1>", self.clic)
         self.bind("<Button1-Motion>", self.deplace)
         self.bind("<Button1-ButtonRelease>", self.relache)
+        self.parent.bind("<Control-z>", self.retour)
+
+    def ajoute_bornes(self, bornes):
+        self.stockage_bornes.append(bornes) # format attendu : bornes = (pxa, pbx, pya, pyb)
+
+    def retire_bornes(self):
+        return self.stockage_bornes.pop()
 
     def clic(self, event):
         "Callback définissant le premier coin du cadre de zoom par clic de la souris"
         self.px1, self.py1 = event.x, event.y
-        self.iD_cadre_zoom = self.create_rectangle(self.px1, self.py1, self.px1, self.py1, outline='red')
+        self.cadre_zoom = self.create_rectangle(self.px1, self.py1, self.px1, self.py1, outline='red')
 
     def deplace(self, event):
         "Callback définissant le deuxième coin du cadre de zoom par déplacement de la souris"
@@ -141,14 +162,24 @@ class CanvasMandel(Canvas):
         signe_y = copysign(1, event.y - self.py1)
         self.py2 = self.py1 + signe_y * self.K * taille_abs
         # Tracé du cadre
-        self.coords(self.iD_cadre_zoom, self.px1, self.py1, self.px2, self.py2)
+        self.coords(self.cadre_zoom, self.px1, self.py1, self.px2, self.py2)
 
     def relache(self, event):
         "Callback définissant le cadre de zoom définitif par relâchement de la souris"
         # On réordonne les valeurs des pixels pour avoir A et B aux bons endroits
         pxa, pya = (min(self.px1, self.px2), min(self.py1, self.py2))  # sur l'image, A (point haut gauche) a les plus petites valeurs en pixels
-        pxb = max(self.px1, self.px2)  # B (point bas droit) a la plus grande abscisse en pixels
-        self.parent.zoom(pxa, pxb, pya)
+        pxb, pyb = (max(self.px1, self.px2), max(self.py1, self.py2))  # B (point bas droit) a les plus grandes valeurs en pixel
+        # Ajout des bornes de zoom au stockage
+        self.ajoute_bornes((pxa, pxb, pya, pyb))
+        # Appel à la callback de zoom du parent
+        self.parent.zoom_dezoom((pxa, pxb, pya), 1)
+
+    def retour(self, event):
+        try:
+            bornes = self.retire_bornes()
+            self.parent.zoom_dezoom(bornes, 2)
+        except IndexError:
+            print("Pas de dézoom possible")
 
     def trace_ensemble(self, ensemble):
         "Fonction de tracé effectif de l'ensemble de Mandelbrot"
@@ -175,9 +206,14 @@ class Fenetre(Tk):
         # Lancement de la boucle d'événements
         self.mainloop()      
 
-    def zoom(self, pxa, pxb, pya):
+    def zoom_dezoom(self, bornes, type):
         # Modification du modèle
-        self.mandel.zone.maj_bornes(pxa, pxb, pya)
+        if type == 1:   # zoom
+            pxa, pxb, pya = bornes
+            self.mandel.zone.maj_bornes_zoom(pxa, pxb, pya)
+        elif type == 2: # dezoom
+            pxa, pxb, pya, pyb = bornes
+            self.mandel.zone.maj_bornes_dezoom(pxa, pxb, pya, pyb)
         self.mandel.calcul_ensemble()
         # Tracé
         self.canevas.delete(ALL)
