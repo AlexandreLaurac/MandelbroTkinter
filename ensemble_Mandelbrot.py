@@ -1,5 +1,6 @@
 from tkinter import *
 from math import sqrt, copysign
+import sys, getopt
 
 
 #---------------------------------------- Modèle ----------------------------------------#
@@ -122,7 +123,7 @@ class Mandelbrot():
         return appartient
 
 
-#---------------------------------------- Vue ----------------------------------------#
+#---------------------------------------- Vues ----------------------------------------#
 
 class CanvasMandel(Canvas):
 
@@ -191,13 +192,13 @@ class CanvasMandel(Canvas):
 
 class Fenetre(Tk):
 
-    def __init__(self, largeur, hauteur, xa, xb, ya):
+    def __init__(self, largeur, hauteur, xa, xb, ya, n_iter):
         Tk.__init__(self)
         # Création du canevas d'affichage
         self.canevas = CanvasMandel(self, largeur, hauteur)
         self.canevas.pack()
         # Création d'un objet Mandelbrot
-        self.mandel = Mandelbrot(largeur, hauteur, xa, xb, ya)
+        self.mandel = Mandelbrot(largeur, hauteur, xa, xb, ya, n_iter)
 
     def lancement(self):
         # Tracé de l'ensemble
@@ -222,12 +223,67 @@ class Fenetre(Tk):
 
 #---------------------------------- Programme principal ----------------------------------#
 
-if __name__ == '__main__':
+def help():
+    print("""
+    Utilisation : ensemble_mandelbrot.py [-l <valeur_l>] [-h <valeur_h>] [-n <valeur_n>]
+    -l, -h : largeur et hauteur du cadre de représentation en pixels
+             si l'une des deux options est absente, la grandeur associée prend la valeur attribuée à l'autre option
+             si les deux options sont absentes, largeur et hauteur prennent la valeur par défaut de 800 pixels
+    -n : nombre d'itérations maximal dans le calcul de la suite définissant l'ensemble de Mandelbrot
+         valeur par défaut : 100 itérations
+    """)
 
-    # Paramètres
-    largeur, hauteur = 800, 800
+def help_exit():
+    help()
+    sys.exit(2)
+
+
+def main(argv):
+
+    # Valeurs par défaut des paramètres
+    largeur = hauteur = 800
+    n_iter = 100
     xa, ya = (-2.0, 1.5)  # point haut gauche 
     xb = 1.0              # abscisse du point bas droite
 
-    # Lancement de la fenêtre
-    Fenetre(largeur, hauteur, xa, xb, ya).lancement()
+    # Récupération des options de la ligne de commande
+    try:
+        options_et_valeurs, _ = getopt.getopt(argv, "n:l:h:", ["help"])
+    except getopt.GetoptError as err:
+        print(err)
+        help_exit()
+
+    # Récupération des valeurs
+    options = [o for o, _ in options_et_valeurs]
+    for option, valeur in options_et_valeurs:
+        if option == "--help":
+            help_exit()
+        elif option == '-l':
+            try:
+                largeur = int(valeur)
+                if '-h' not in options:
+                    hauteur = largeur
+            except:
+                print("Mauvaise valeur pour l'option '-l'")
+                help_exit()
+        elif option == '-h':
+            try:
+                hauteur = int(valeur)
+                if '-l' not in options:
+                    largeur = hauteur
+            except:
+                print("Mauvaise valeur pour l'option '-h'")
+                help_exit()
+        elif option == '-n':
+            try:
+                n_iter = int(valeur)
+            except:
+                print("Mauvaise valeur pour l'option '-n'")
+                help_exit()
+
+    # Lancement de l'application
+    Fenetre(largeur, hauteur, xa, xb, ya, n_iter).lancement()
+
+
+if __name__ == "__main__":
+    main(sys.argv[1:])
