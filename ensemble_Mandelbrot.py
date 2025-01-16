@@ -127,6 +127,9 @@ class Mandelbrot():
 
 class CanvasMandel(Canvas):
 
+    etiquette_efface = "items_a_effacer"
+    etiquette_garde = "items_a_garder"
+
     def __init__(self, parent, largeur, hauteur):
         # Classe et widget parents
         Canvas.__init__(self, parent, width=largeur, height=hauteur, bg='white')
@@ -138,6 +141,9 @@ class CanvasMandel(Canvas):
         # Stockage des bornes de zoom en pixels pour le retour en arrière par ctrl-z
         self.stockage_bornes = []
         # Gestion des événements
+        self.bind("<Enter>", self.entree_canevas)
+        self.bind("<Leave>", self.sortie_canevas)
+        self.bind("<Motion>", self.survol_canevas)
         self.bind("<Button-1>", self.clic)
         self.bind("<Button1-Motion>", self.deplace)
         self.bind("<Button1-ButtonRelease>", self.relache)
@@ -149,10 +155,19 @@ class CanvasMandel(Canvas):
     def retire_bornes(self):
         return self.stockage_bornes.pop()
 
+    def entree_canevas(self, event):
+        self.texte_coord = self.create_text(self.largeur-25, self.hauteur-10, text=f"{event.x}, {event.y}", fill="red", tags=CanvasMandel.etiquette_garde)
+
+    def sortie_canevas(self, event):
+        self.delete(self.texte_coord)
+
+    def survol_canevas(self, event):
+        self.itemconfigure(self.texte_coord, text=f"{event.x}, {event.y}")
+
     def clic(self, event):
         "Callback définissant le premier coin du cadre de zoom par clic de la souris"
         self.px1, self.py1 = event.x, event.y
-        self.cadre_zoom = self.create_rectangle(self.px1, self.py1, self.px1, self.py1, outline='red')
+        self.cadre_zoom = self.create_rectangle(self.px1, self.py1, self.px1, self.py1, outline='red', tags=CanvasMandel.etiquette_efface)
 
     def deplace(self, event):
         "Callback définissant le deuxième coin du cadre de zoom par déplacement de la souris"
@@ -187,7 +202,15 @@ class CanvasMandel(Canvas):
         for py in range(self.hauteur):
             for px in range(self.largeur):
                 if ensemble[py][px] == True:
-                    self.create_rectangle(px,py,px,py)
+                    self.create_rectangle(px,py,px,py, tags=CanvasMandel.etiquette_efface)
+
+    def retrace_complet(self, ensemble):
+        """Fonction de retracé du canevas : suppression des éléments marqués comme tels (ensemble
+        courant, cadre de zoom), tracé d'un nouvel ensemble, et surélévation des éléments à conserver
+        """
+        self.delete(CanvasMandel.etiquette_efface)
+        self.trace_ensemble(ensemble)
+        self.tag_raise(CanvasMandel.etiquette_garde, CanvasMandel.etiquette_efface)
 
 
 class Fenetre(Tk):
@@ -217,8 +240,7 @@ class Fenetre(Tk):
             self.mandel.zone.maj_bornes_dezoom(pxa, pxb, pya, pyb)
         self.mandel.calcul_ensemble()
         # Tracé
-        self.canevas.delete(ALL)
-        self.canevas.trace_ensemble(self.mandel.ensemble)  
+        self.canevas.retrace_complet(self.mandel.ensemble)
 
 
 #---------------------------------- Programme principal ----------------------------------#
