@@ -123,6 +123,73 @@ class Mandelbrot():
         return appartient
 
 
+def precision(x1, x2, log=False):
+    """Fonction utilitaire permettant de déterminer le nombre de chiffres à afficher
+    après la virgule à partir des chiffres communs à deux nombres fournis en argument.
+    Valeur retournée : 3 chiffres en plus du nombre de chiffres commun après la virgule
+
+    La fonction est écrite principalement pour des nombres décimaux, mais prend aussi
+    en compte les nombres entiers s'ils se présentent. Les cas sont les suivants :
+    1. pour deux nombres flottants :
+    - les parties entières sont différentes : precision = 2
+    - les parties entières sont égales : precision = nombre de chiffres communs après
+      la virgule + 3
+    2. pour un nombre flottant et un entier : le principe est le même, sachant que, si
+    les parties entières sont égales, le nombre de chiffres communs après la virgule
+    est nul (=> précision maximale de 3)
+    3. pour deux nombres entiers, égaux ou différents : precision = 2
+
+    La fonction ne donne pas toujours le résultat attendu en raison du codage des flottants
+    (ex : 1.2 étant codé en 1.19999999999999996, l'appel de la fonction avec 1.1 donne
+    une partie commune de 1.1 et une précision de 4 alors qu'on attend une partie commune
+    de 1 et une précision de 3)
+
+    Cette fonction est utilisée lors de l'affichage des coordonnées d'un point pour avoir :
+    1. un même nombre de chiffres après la virgule pour ces coordonnées dans une même zone
+       de zoom (et non un nombre de chiffres dépendant du point)
+    2. et surtout un nombre de chiffres après la virgule dépendant du niveau de zoom, de
+       sorte que la précision des coordonnées soit suffisamment grande pour que l'on puisse
+       observer une variation de celles-ci entre les bornes
+    """
+
+    # Algorithme
+    precision = 2  # initialement deux chiffres après la virgule
+    ex1, ex2 = int(x1), int(x2)  # partie entière des deux nombres à comparer
+    if ex1 == ex2 and (x1 != ex1 or x2 != ex2):  # si les deux nombres ont une partie entière différente, ou s'ils sont tous les deux entiers, on s'arrête à une précision de deux chiffres après la virgule, sinon...
+        precision = precision + 1
+        # ... on compare les chaines de chiffres après la virgule ...
+        ch_x1 = str(x1)
+        ip1 = ch_x1.find('.')
+        ch1 = str(x1 - ex1)[ip1+1:]
+        ch_x2 = str(x2)
+        ip2 = ch_x2.find('.')
+        ch2 = str(x2 - ex2)[ip2+1:]
+        i = 0
+        taille_min = min(len(ch1), len(ch2))
+        while i<taille_min and ch1[i] == ch2[i]:  # ... et on ajoute un chiffre de précision à chaque chiffre identique
+            precision = precision + 1
+            i = i + 1
+
+    # Log : affichage de la partie commune et de la précision obtenue
+    if log == True:
+        print(f"Nombres fournis :\n{x1}\n{x2}")
+        # Un des deux nombres est un entier : la partie commune est au mieux l'entier
+        if type(x1) == int or type(x2) == int:
+            if ex1 == ex2:
+                print(f"Partie commune :\n{ex1}")
+            else:
+                print("Pas de partie commune")
+        # Les deux nombres fournis sont des flottants
+        else:
+            if precision == 2:  # les parties entières sont différentes
+                print("Pas de partie commune")
+            else:
+                print(f"Partie commune :\n{ch_x1[0:ip1+i+1]}")  # +1 car borne finale non incluse en Python
+        print(f"Précision : {precision}")
+
+    return precision
+
+
 #---------------------------------------- Vues ----------------------------------------#
 
 class CanvasMandel(Canvas):
@@ -142,8 +209,8 @@ class CanvasMandel(Canvas):
         self.stockage_bornes = []
         # Gestion des événements
         self.bind("<Enter>", self.entree_canevas)
-        self.bind("<Leave>", self.sortie_canevas)
         self.bind("<Motion>", self.survol_canevas)
+        self.bind("<Leave>", self.sortie_canevas)
         self.bind("<Button-1>", self.clic)
         self.bind("<Button1-Motion>", self.deplace)
         self.bind("<Button1-ButtonRelease>", self.relache)
@@ -156,13 +223,29 @@ class CanvasMandel(Canvas):
         return self.stockage_bornes.pop()
 
     def entree_canevas(self, event):
-        self.texte_coord = self.create_text(self.largeur-25, self.hauteur-10, text=f"{event.x}, {event.y}", fill="red", tags=CanvasMandel.etiquette_garde)
-
-    def sortie_canevas(self, event):
-        self.delete(self.texte_coord)
+        """Callback d'entrée de la souris dans le canevas, définit le texte de coordonnées à afficher en bas à droite"""
+        self.texte_coord = self.create_text(self.largeur-7, self.hauteur-4, anchor='se', fill="red", font="Arial 12 bold", tags=CanvasMandel.etiquette_garde)
 
     def survol_canevas(self, event):
-        self.itemconfigure(self.texte_coord, text=f"{event.x}, {event.y}")
+        """Callback d'affichage des coordonnées de la souris dans la zone de représentation (pas celles en pixels dans le canevas)
+
+        Ne respecte pas le pattern MVC (déjà simplifié avec l'utilisation de la fenêtre comme contrôleur) : on devrait normalement
+        faire appel à une méthode du contrôleur, qui elle-même irait chercher les coordonnées dans le modèle puis demanderait au
+        canevas de les afficher
+        """
+        # Calcul des coordonnées du point courant du canevas
+        x = self.parent.mandel.zone.pix_to_x(event.x)
+        y = self.parent.mandel.zone.pix_to_y(event.y)
+        # Précision d'affichage en fonction de la partie commune des bornes
+        xa = self.parent.mandel.zone.A.x
+        xb = self.parent.mandel.zone.B.x
+        prec = precision(xa, xb)
+        # Affichage
+        self.itemconfigure(self.texte_coord, text=f"{x:.{prec}f}, {y:.{prec}f}")
+
+    def sortie_canevas(self, event):
+        """Callback de sortie de la souris du canevas, détruit le texte de coordonnées affiché en bas à droite"""
+        self.delete(self.texte_coord)
 
     def clic(self, event):
         "Callback définissant le premier coin du cadre de zoom par clic de la souris"
