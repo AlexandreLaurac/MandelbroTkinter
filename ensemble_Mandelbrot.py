@@ -284,12 +284,9 @@ class CanvasMandel(Canvas):
 
     def trace_ensemble(self, ensemble):
         "Fonction de tracé effectif de l'ensemble de Mandelbrot"
-        for py in range(self.hauteur):
-            for px in range(self.largeur):
-                if ensemble[py][px] == True:
-                    self.image.put(data="{black}", to=(px, py))
-                else:
-                    self.image.put(data="{white}", to=(px, py))
+        # donnees = " ".join(map(lambda y: "{" + " ".join(map(lambda x: "black" if x else "white", y)) + "} ", ensemble))
+        donnees = " ".join( [ "{" + " ".join(["black" if booleen else "white" for booleen in liste]) + "} " for liste in ensemble] )
+        self.image.put(data=donnees, to=(0, 0, self.largeur, self.hauteur))
         self.create_image(0, 0, anchor= 'nw', image=self.image, tags=CanvasMandel.etiquette_efface)
 
     def retrace_complet(self, ensemble):
