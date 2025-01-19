@@ -205,6 +205,8 @@ class CanvasMandel(Canvas):
         self.largeur = largeur
         self.hauteur = hauteur
         self.K = hauteur / largeur  # idem que dans l'objet zone de la classe Mandelbrot
+        # Objet de type PhotoImage pour représenter l'ensemble
+        self.image = PhotoImage(width=largeur, height=hauteur)
         # Stockage des bornes de zoom en pixels pour le retour en arrière par ctrl-z
         self.stockage_bornes = []
         # Gestion des événements
@@ -285,13 +287,17 @@ class CanvasMandel(Canvas):
         for py in range(self.hauteur):
             for px in range(self.largeur):
                 if ensemble[py][px] == True:
-                    self.create_rectangle(px,py,px,py, tags=CanvasMandel.etiquette_efface)
+                    self.image.put(data="{black}", to=(px, py))
+                else:
+                    self.image.put(data="{white}", to=(px, py))
+        self.create_image(0, 0, anchor= 'nw', image=self.image, tags=CanvasMandel.etiquette_efface)
 
     def retrace_complet(self, ensemble):
         """Fonction de retracé du canevas : suppression des éléments marqués comme tels (ensemble
         courant, cadre de zoom), tracé d'un nouvel ensemble, et surélévation des éléments à conserver
         """
         self.delete(CanvasMandel.etiquette_efface)
+        self.image.blank()
         self.trace_ensemble(ensemble)
         self.tag_raise(CanvasMandel.etiquette_garde, CanvasMandel.etiquette_efface)
 
