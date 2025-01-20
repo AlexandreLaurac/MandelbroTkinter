@@ -210,7 +210,6 @@ class CanvasMandel(Canvas):
         """
         self.delete(CanvasMandel.etiquette_efface)
         self.trace_ensemble(ensemble)
-        self.tag_raise(CanvasMandel.etiquette_garde, CanvasMandel.etiquette_efface)
 
 
 class Fenetre(Tk):
@@ -221,37 +220,57 @@ class Fenetre(Tk):
         # Création du canevas d'affichage
         self.canevas = CanvasMandel(self, largeur, hauteur)
         self.canevas.pack()
-        # Label pour les coordonnées
-        self.label_coord = Label(self, text="", font="Arial 10", background="white", anchor="e")
+        # Label pour les bornes de la zone de représentation
+        self.label_bornes = Label(self, font="Arial 10", background="white")
+        self.label_bornes.pack(side=LEFT)
+        # Label pour les coordonnées du point désigné par la souris
+        self.label_coord = Label(self, text="", anchor="e", font="Arial 10", background="white")
         self.label_coord.pack(fill=X)
         # Création d'un objet Mandelbrot
         self.mandel = Mandelbrot(largeur, hauteur, xa, xb, ya, n_iter)
 
     def lancement(self):
-        # Tracé de l'ensemble
+        # Calcul de l'ensemble
         self.mandel.calcul_ensemble()
+        # Tracé de l'ensemble et affichage des bornes
         self.canevas.trace_ensemble(self.mandel.ensemble)
+        self.affiche_bornes()
         # Lancement de la boucle d'événements
         self.mainloop()
+
+    def affiche_bornes(self):
+        """Méthode d'affichage des bornes de la zone de représentation.
+        Les bornes ne changent pas pour un même tracé de l'ensemble. La fonction
+        est appelée au lancement de l'application et à chaque zoom ou dézoom.
+        """
+        # Récupération des bornes dans le modèle
+        xa, xb = self.mandel.zone.A.x, self.mandel.zone.B.x
+        ya, yb = self.mandel.zone.A.y, self.mandel.zone.B.y
+        # Précisions d'affichage en fonction de la partie commune des bornes
+        prec_x = precision(xa, xb)
+        prec_y = precision(ya, yb)
+        # Affichage des bornes
+        self.label_bornes.configure(text=f"x = [{xa:.{prec_x}f}, {xb:.{prec_x}f}], y = [{yb:.{prec_y}f}, {ya:.{prec_y}f}]")
 
     def affiche_coordonnees_reelles(self, px, py):
         """Méthode d'affichage des coordonnées du point désigné par la souris
         à partir des coordonnées en pixels px et py de celle-ci dans le canevas
         """
-        # Récupération des coordonnées du point courant dans le modèle
+        # Calcul des coordonnées du point courant à partir du modèle
         x = self.mandel.zone.pix_to_x(px)
         y = self.mandel.zone.pix_to_y(py)
-
-        # Précision d'affichage en fonction de la partie commune des bornes
-        xa = self.mandel.zone.A.x
-        xb = self.mandel.zone.B.x
-        prec = precision(xa, xb)
+        # Récupération des bornes dans le modèle
+        xa, xb = self.mandel.zone.A.x, self.mandel.zone.B.x
+        ya, yb = self.mandel.zone.A.y, self.mandel.zone.B.y
+        # Précisions d'affichage en fonction de la partie commune des bornes
+        prec_x = precision(xa, xb)
+        prec_y = precision(ya, yb)
         # Affichage des coordonnées
-        self.label_coord.configure(text=f"{x:.{prec}f}, {y:.{prec}f} ")
+        self.label_coord.configure(text=f"{x:.{prec_x}f}, {y:.{prec_y}f} ")
 
     def efface_coordonnees_reelles(self):        
         """Méthode effaçant les coordonnées du point précédemment désigné par
-        la souris lorsque celle-ci sort du canevas
+        la souris lorsque celle-ci sort du canevas.
         """
         # Simple mise à vide du texte
         self.label_coord.configure(text="")
@@ -265,8 +284,9 @@ class Fenetre(Tk):
             pxa, pxb, pya, pyb = bornes
             self.mandel.zone.maj_bornes_dezoom(pxa, pxb, pya, pyb)
         self.mandel.calcul_ensemble()
-        # Tracé
+        # Tracé de l'ensemble et affichage des bornes
         self.canevas.retrace_complet(self.mandel.ensemble)
+        self.affiche_bornes()
 
 
 def precision(x1, x2, log=False):
