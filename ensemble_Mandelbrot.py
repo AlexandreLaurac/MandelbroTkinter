@@ -123,6 +123,152 @@ class Mandelbrot():
         return appartient
 
 
+#---------------------------------------- Vues ----------------------------------------#
+
+class CanvasMandel(Canvas):
+
+    etiquette_efface = "items_a_effacer"
+    etiquette_garde = "items_a_garder"
+
+    def __init__(self, parent, largeur, hauteur):
+        # Classe et widget parents
+        Canvas.__init__(self, parent, width=largeur, height=hauteur, bg='white', borderwidth=0, highlightthickness=0)
+        self.parent = parent
+        # Dimensions du canevas
+        self.largeur = largeur
+        self.hauteur = hauteur
+        self.K = hauteur / largeur  # idem que dans l'objet zone de la classe Mandelbrot
+        # Stockage des bornes de zoom en pixels pour le retour en arrière par ctrl-z
+        self.stockage_bornes = []
+        # Gestion des événements
+        self.bind("<Motion>", self.survol_canevas)
+        self.bind("<Leave>", self.sortie_canevas)
+        self.bind("<Button-1>", self.clic)
+        self.bind("<Button1-Motion>", self.deplace)
+        self.bind("<Button1-ButtonRelease>", self.relache)
+        self.parent.bind("<Control-z>", self.retour)
+
+    def ajoute_bornes(self, bornes):
+        self.stockage_bornes.append(bornes) # format attendu : bornes = (pxa, pbx, pya, pyb)
+
+    def retire_bornes(self):
+        return self.stockage_bornes.pop()
+
+    def survol_canevas(self, event):
+        """Callback liée à l'événement de survol du canevas par la souris et conduisant à l'affichage
+        des coordonnées du point qu'elle désigne à partir de ses coordonnées en pixels dans le canevas
+        """
+        self.parent.affiche_coordonnees_reelles(event.x, event.y)
+
+    def sortie_canevas(self, event):
+        """Callback de sortie de la souris du canevas, efface le texte de coordonnées affiché en bas à droite"""
+        self.parent.efface_coordonnees_reelles()
+
+    def clic(self, event):
+        "Callback définissant le premier coin du cadre de zoom par clic de la souris"
+        self.px1, self.py1 = event.x, event.y
+        self.cadre_zoom = self.create_rectangle(self.px1, self.py1, self.px1, self.py1, outline='red', tags=CanvasMandel.etiquette_efface)
+
+    def deplace(self, event):
+        "Callback définissant le deuxième coin du cadre de zoom par déplacement de la souris"
+        # Abscisse du deuxième point obtenu par déplacement de la souris
+        self.px2 = event.x
+        # Ordonnée du deuxième point, respectant les proportions de la fenêtre et le déplacement de la souris
+        taille_abs = abs(self.px2 - self.px1)
+        signe_y = copysign(1, event.y - self.py1)
+        self.py2 = self.py1 + signe_y * self.K * taille_abs
+        # Tracé du cadre
+        self.coords(self.cadre_zoom, self.px1, self.py1, self.px2, self.py2)
+
+    def relache(self, event):
+        "Callback définissant le cadre de zoom définitif par relâchement de la souris"
+        # On réordonne les valeurs des pixels pour avoir A et B aux bons endroits
+        pxa, pya = (min(self.px1, self.px2), min(self.py1, self.py2))  # sur l'image, A (point haut gauche) a les plus petites valeurs en pixels
+        pxb, pyb = (max(self.px1, self.px2), max(self.py1, self.py2))  # B (point bas droit) a les plus grandes valeurs en pixel
+        # Ajout des bornes de zoom au stockage
+        self.ajoute_bornes((pxa, pxb, pya, pyb))
+        # Appel à la callback de zoom du parent
+        self.parent.zoom_dezoom((pxa, pxb, pya), 1)
+
+    def retour(self, event):
+        try:
+            bornes = self.retire_bornes()
+            self.parent.zoom_dezoom(bornes, 2)
+        except IndexError:
+            print("Pas de dézoom possible")
+
+    def trace_ensemble(self, ensemble):
+        "Fonction de tracé effectif de l'ensemble de Mandelbrot"
+        for py in range(self.hauteur):
+            for px in range(self.largeur):
+                if ensemble[py][px] == True:
+                    self.create_line(px, py, px+1, py, tags=CanvasMandel.etiquette_efface)
+
+    def retrace_complet(self, ensemble):
+        """Fonction de retracé du canevas : suppression des éléments marqués comme tels (ensemble
+        courant, cadre de zoom), tracé d'un nouvel ensemble, et surélévation des éléments à conserver
+        """
+        self.delete(CanvasMandel.etiquette_efface)
+        self.trace_ensemble(ensemble)
+        self.tag_raise(CanvasMandel.etiquette_garde, CanvasMandel.etiquette_efface)
+
+
+class Fenetre(Tk):
+
+    def __init__(self, largeur, hauteur, xa, xb, ya, n_iter):
+        Tk.__init__(self)
+        self.title("Fractale de Mandelbrot")
+        # Création du canevas d'affichage
+        self.canevas = CanvasMandel(self, largeur, hauteur)
+        self.canevas.pack()
+        # Label pour les coordonnées
+        self.label_coord = Label(self, text="", font="Arial 10", background="white", anchor="e")
+        self.label_coord.pack(fill=X)
+        # Création d'un objet Mandelbrot
+        self.mandel = Mandelbrot(largeur, hauteur, xa, xb, ya, n_iter)
+
+    def lancement(self):
+        # Tracé de l'ensemble
+        self.mandel.calcul_ensemble()
+        self.canevas.trace_ensemble(self.mandel.ensemble)
+        # Lancement de la boucle d'événements
+        self.mainloop()
+
+    def affiche_coordonnees_reelles(self, px, py):
+        """Méthode d'affichage des coordonnées du point désigné par la souris
+        à partir des coordonnées en pixels px et py de celle-ci dans le canevas
+        """
+        # Récupération des coordonnées du point courant dans le modèle
+        x = self.mandel.zone.pix_to_x(px)
+        y = self.mandel.zone.pix_to_y(py)
+
+        # Précision d'affichage en fonction de la partie commune des bornes
+        xa = self.mandel.zone.A.x
+        xb = self.mandel.zone.B.x
+        prec = precision(xa, xb)
+        # Affichage des coordonnées
+        self.label_coord.configure(text=f"{x:.{prec}f}, {y:.{prec}f} ")
+
+    def efface_coordonnees_reelles(self):        
+        """Méthode effaçant les coordonnées du point précédemment désigné par
+        la souris lorsque celle-ci sort du canevas
+        """
+        # Simple mise à vide du texte
+        self.label_coord.configure(text="")
+
+    def zoom_dezoom(self, bornes, type):
+        # Modification du modèle
+        if type == 1:   # zoom
+            pxa, pxb, pya = bornes
+            self.mandel.zone.maj_bornes_zoom(pxa, pxb, pya)
+        elif type == 2: # dezoom
+            pxa, pxb, pya, pyb = bornes
+            self.mandel.zone.maj_bornes_dezoom(pxa, pxb, pya, pyb)
+        self.mandel.calcul_ensemble()
+        # Tracé
+        self.canevas.retrace_complet(self.mandel.ensemble)
+
+
 def precision(x1, x2, log=False):
     """Fonction utilitaire permettant de déterminer le nombre de chiffres à afficher
     après la virgule à partir des chiffres communs à deux nombres fournis en argument.
@@ -190,142 +336,6 @@ def precision(x1, x2, log=False):
     return precision
 
 
-#---------------------------------------- Vues ----------------------------------------#
-
-class CanvasMandel(Canvas):
-
-    etiquette_efface = "items_a_effacer"
-    etiquette_garde = "items_a_garder"
-
-    def __init__(self, parent, largeur, hauteur):
-        # Classe et widget parents
-        Canvas.__init__(self, parent, width=largeur, height=hauteur, bg='white')
-        self.parent = parent
-        # Dimensions du canevas
-        self.largeur = largeur
-        self.hauteur = hauteur
-        self.K = hauteur / largeur  # idem que dans l'objet zone de la classe Mandelbrot
-        # Stockage des bornes de zoom en pixels pour le retour en arrière par ctrl-z
-        self.stockage_bornes = []
-        # Gestion des événements
-        self.bind("<Enter>", self.entree_canevas)
-        self.bind("<Motion>", self.survol_canevas)
-        self.bind("<Leave>", self.sortie_canevas)
-        self.bind("<Button-1>", self.clic)
-        self.bind("<Button1-Motion>", self.deplace)
-        self.bind("<Button1-ButtonRelease>", self.relache)
-        self.parent.bind("<Control-z>", self.retour)
-
-    def ajoute_bornes(self, bornes):
-        self.stockage_bornes.append(bornes) # format attendu : bornes = (pxa, pbx, pya, pyb)
-
-    def retire_bornes(self):
-        return self.stockage_bornes.pop()
-
-    def entree_canevas(self, event):
-        """Callback d'entrée de la souris dans le canevas, définit le texte de coordonnées à afficher en bas à droite"""
-        self.texte_coord = self.create_text(self.largeur-7, self.hauteur-4, anchor='se', fill="red", font="Arial 12 bold", tags=CanvasMandel.etiquette_garde)
-
-    def survol_canevas(self, event):
-        """Callback d'affichage des coordonnées de la souris dans la zone de représentation (pas celles en pixels dans le canevas)
-
-        Ne respecte pas le pattern MVC (déjà simplifié avec l'utilisation de la fenêtre comme contrôleur) : on devrait normalement
-        faire appel à une méthode du contrôleur, qui elle-même irait chercher les coordonnées dans le modèle puis demanderait au
-        canevas de les afficher
-        """
-        # Calcul des coordonnées du point courant du canevas
-        x = self.parent.mandel.zone.pix_to_x(event.x)
-        y = self.parent.mandel.zone.pix_to_y(event.y)
-        # Précision d'affichage en fonction de la partie commune des bornes
-        xa = self.parent.mandel.zone.A.x
-        xb = self.parent.mandel.zone.B.x
-        prec = precision(xa, xb)
-        # Affichage
-        self.itemconfigure(self.texte_coord, text=f"{x:.{prec}f}, {y:.{prec}f}")
-
-    def sortie_canevas(self, event):
-        """Callback de sortie de la souris du canevas, détruit le texte de coordonnées affiché en bas à droite"""
-        self.delete(self.texte_coord)
-
-    def clic(self, event):
-        "Callback définissant le premier coin du cadre de zoom par clic de la souris"
-        self.px1, self.py1 = event.x, event.y
-        self.cadre_zoom = self.create_rectangle(self.px1, self.py1, self.px1, self.py1, outline='red', tags=CanvasMandel.etiquette_efface)
-
-    def deplace(self, event):
-        "Callback définissant le deuxième coin du cadre de zoom par déplacement de la souris"
-        # Abscisse du deuxième point obtenu par déplacement de la souris
-        self.px2 = event.x
-        # Ordonnée du deuxième point, respectant les proportions de la fenêtre et le déplacement de la souris
-        taille_abs = abs(self.px2 - self.px1)
-        signe_y = copysign(1, event.y - self.py1)
-        self.py2 = self.py1 + signe_y * self.K * taille_abs
-        # Tracé du cadre
-        self.coords(self.cadre_zoom, self.px1, self.py1, self.px2, self.py2)
-
-    def relache(self, event):
-        "Callback définissant le cadre de zoom définitif par relâchement de la souris"
-        # On réordonne les valeurs des pixels pour avoir A et B aux bons endroits
-        pxa, pya = (min(self.px1, self.px2), min(self.py1, self.py2))  # sur l'image, A (point haut gauche) a les plus petites valeurs en pixels
-        pxb, pyb = (max(self.px1, self.px2), max(self.py1, self.py2))  # B (point bas droit) a les plus grandes valeurs en pixel
-        # Ajout des bornes de zoom au stockage
-        self.ajoute_bornes((pxa, pxb, pya, pyb))
-        # Appel à la callback de zoom du parent
-        self.parent.zoom_dezoom((pxa, pxb, pya), 1)
-
-    def retour(self, event):
-        try:
-            bornes = self.retire_bornes()
-            self.parent.zoom_dezoom(bornes, 2)
-        except IndexError:
-            print("Pas de dézoom possible")
-
-    def trace_ensemble(self, ensemble):
-        "Fonction de tracé effectif de l'ensemble de Mandelbrot"
-        for py in range(self.hauteur):
-            for px in range(self.largeur):
-                if ensemble[py][px] == True:
-                    self.create_line(px, py, px+1, py, tags=CanvasMandel.etiquette_efface)
-
-    def retrace_complet(self, ensemble):
-        """Fonction de retracé du canevas : suppression des éléments marqués comme tels (ensemble
-        courant, cadre de zoom), tracé d'un nouvel ensemble, et surélévation des éléments à conserver
-        """
-        self.delete(CanvasMandel.etiquette_efface)
-        self.trace_ensemble(ensemble)
-        self.tag_raise(CanvasMandel.etiquette_garde, CanvasMandel.etiquette_efface)
-
-
-class Fenetre(Tk):
-
-    def __init__(self, largeur, hauteur, xa, xb, ya, n_iter):
-        Tk.__init__(self)
-        # Création du canevas d'affichage
-        self.canevas = CanvasMandel(self, largeur, hauteur)
-        self.canevas.pack()
-        # Création d'un objet Mandelbrot
-        self.mandel = Mandelbrot(largeur, hauteur, xa, xb, ya, n_iter)
-
-    def lancement(self):
-        # Tracé de l'ensemble
-        self.mandel.calcul_ensemble()
-        self.canevas.trace_ensemble(self.mandel.ensemble)
-        # Lancement de la boucle d'événements
-        self.mainloop()      
-
-    def zoom_dezoom(self, bornes, type):
-        # Modification du modèle
-        if type == 1:   # zoom
-            pxa, pxb, pya = bornes
-            self.mandel.zone.maj_bornes_zoom(pxa, pxb, pya)
-        elif type == 2: # dezoom
-            pxa, pxb, pya, pyb = bornes
-            self.mandel.zone.maj_bornes_dezoom(pxa, pxb, pya, pyb)
-        self.mandel.calcul_ensemble()
-        # Tracé
-        self.canevas.retrace_complet(self.mandel.ensemble)
-
-
 #---------------------------------- Programme principal ----------------------------------#
 
 def help():
@@ -389,9 +399,6 @@ def main(argv):
     # Lancement de l'application
     Fenetre(largeur, hauteur, xa, xb, ya, n_iter).lancement()
 
-
-if __name__ == "__main__":
-    main(sys.argv[1:])
 
 if __name__ == "__main__":
     main(sys.argv[1:])
