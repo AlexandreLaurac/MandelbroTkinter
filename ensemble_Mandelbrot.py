@@ -156,12 +156,15 @@ class CanvasMandel(Canvas):
 
     def survol_canevas(self, event):
         """Callback liée à l'événement de survol du canevas par la souris et conduisant à l'affichage
-        des coordonnées du point qu'elle désigne à partir de ses coordonnées en pixels dans le canevas
+        des coordonnées réelles du point qu'elle désigne à partir de ses coordonnées en pixels dans
+        le canevas.
         """
         self.parent.affiche_coordonnees_reelles(event.x, event.y)
 
     def sortie_canevas(self, event):
-        """Callback de sortie de la souris du canevas, efface le texte de coordonnées affiché en bas à droite"""
+        """Callback de sortie de la souris du canevas conduisant à effacer le texte des coordonnées
+        réelles du point qu'elle désigne.
+        """
         self.parent.efface_coordonnees_reelles()
 
     def clic(self, event):
@@ -212,6 +215,38 @@ class CanvasMandel(Canvas):
         self.trace_ensemble(ensemble)
 
 
+class CadreCoordonnees(Frame):
+
+    def __init__(self, parent):
+        Frame.__init__(self, parent, background="white")
+        # Label pour les bornes de la zone de représentation
+        self.label_bornes = Label(self, font="Arial 10", background="white")
+        self.label_bornes.pack(side=LEFT)
+        # Label pour les coordonnées du point désigné par la souris
+        self.label_coord = Label(self, text="", anchor="e", font="Arial 10", background="white")
+        self.label_coord.pack(fill=X)
+
+    def affiche_bornes(self, xa, xb, ya, yb):
+        "Méthode d'affichage dans le Label de gauche des bornes de la zone de représentation"
+        # Précisions d'affichage en fonction de la partie commune des bornes
+        prec_x = precision(xa, xb)
+        prec_y = precision(ya, yb)
+        # Affichage des bornes
+        self.label_bornes.configure(text=f" x = [{xa:.{prec_x}f}, {xb:.{prec_x}f}], y = [{yb:.{prec_y}f}, {ya:.{prec_y}f}]")
+
+    def affiche_coordonnees_reelles(self, x, y, xa, xb, ya, yb):
+        "Méthode d'affichage dans le Label de droite des coordonnées réelles du point désigné par la souris dans le canevas"
+        # Précisions d'affichage en fonction de la partie commune des bornes
+        prec_x = precision(xa, xb)
+        prec_y = precision(ya, yb)
+        # Affichage des coordonnées
+        self.label_coord.configure(text=f"{x:.{prec_x}f}, {y:.{prec_y}f} ")
+
+    def efface_coordonnees_reelles(self):
+        "Méthode effaçant dans le Label de droite le texte des coordonnées réelles du point désigné par la souris dans le canevas"
+        self.label_coord.configure(text="")
+
+
 class Fenetre(Tk):
 
     def __init__(self, largeur, hauteur, xa, xb, ya, n_iter):
@@ -220,12 +255,9 @@ class Fenetre(Tk):
         # Création du canevas d'affichage
         self.canevas = CanvasMandel(self, largeur, hauteur)
         self.canevas.pack()
-        # Label pour les bornes de la zone de représentation
-        self.label_bornes = Label(self, font="Arial 10", background="white")
-        self.label_bornes.pack(side=LEFT)
-        # Label pour les coordonnées du point désigné par la souris
-        self.label_coord = Label(self, text="", anchor="e", font="Arial 10", background="white")
-        self.label_coord.pack(fill=X)
+        # Création du cadre de coordonnées
+        self.cadre_coordonnees = CadreCoordonnees(self)
+        self.cadre_coordonnees.pack(fill=X)
         # Création d'un objet Mandelbrot
         self.mandel = Mandelbrot(largeur, hauteur, xa, xb, ya, n_iter)
 
@@ -243,18 +275,18 @@ class Fenetre(Tk):
         Les bornes ne changent pas pour un même tracé de l'ensemble. La fonction
         est appelée au lancement de l'application et à chaque zoom ou dézoom.
         """
-        # Récupération des bornes dans le modèle
+        # Récupération des bornes unes à unes
         xa, xb = self.mandel.zone.A.x, self.mandel.zone.B.x
         ya, yb = self.mandel.zone.A.y, self.mandel.zone.B.y
-        # Précisions d'affichage en fonction de la partie commune des bornes
-        prec_x = precision(xa, xb)
-        prec_y = precision(ya, yb)
         # Affichage des bornes
-        self.label_bornes.configure(text=f"x = [{xa:.{prec_x}f}, {xb:.{prec_x}f}], y = [{yb:.{prec_y}f}, {ya:.{prec_y}f}]")
+        self.cadre_coordonnees.affiche_bornes(xa, xb, ya, yb)
 
     def affiche_coordonnees_reelles(self, px, py):
-        """Méthode d'affichage des coordonnées du point désigné par la souris
-        à partir des coordonnées en pixels px et py de celle-ci dans le canevas
+        """Méthode appelée par la callback de survol du canevas par la souris.
+        Déduit du modèle les coordonnées réelles du point désigné par la souris
+        à partir de ses coordonnées en pixels px et py, récupère du modèle les
+        bornes de la zone de représentation puis appelle la méthode d'affichage
+        correspondante du widget de cadre de coordonnées.
         """
         # Calcul des coordonnées du point courant à partir du modèle
         x = self.mandel.zone.pix_to_x(px)
@@ -262,18 +294,14 @@ class Fenetre(Tk):
         # Récupération des bornes dans le modèle
         xa, xb = self.mandel.zone.A.x, self.mandel.zone.B.x
         ya, yb = self.mandel.zone.A.y, self.mandel.zone.B.y
-        # Précisions d'affichage en fonction de la partie commune des bornes
-        prec_x = precision(xa, xb)
-        prec_y = precision(ya, yb)
         # Affichage des coordonnées
-        self.label_coord.configure(text=f"{x:.{prec_x}f}, {y:.{prec_y}f} ")
+        self.cadre_coordonnees.affiche_coordonnees_reelles(x, y, xa, xb, ya, yb)
 
-    def efface_coordonnees_reelles(self):        
-        """Méthode effaçant les coordonnées du point précédemment désigné par
-        la souris lorsque celle-ci sort du canevas.
+    def efface_coordonnees_reelles(self):
+        """Méthode appelée par la callback de sortie de la souris du canevas.
+        Appelle la méthode correspondante du widget de cadre de coordonnées.
         """
-        # Simple mise à vide du texte
-        self.label_coord.configure(text="")
+        self.cadre_coordonnees.efface_coordonnees_reelles()
 
     def zoom_dezoom(self, bornes, type):
         # Modification du modèle
