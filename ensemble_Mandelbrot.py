@@ -235,31 +235,28 @@ class CadreCoordonnees(Frame):
         self.label_coord.pack(fill=X)
 
     def affiche_bornes(self, xa, xb, ya, yb):
-        "Méthode d'affichage dans le Label de gauche des bornes de la zone de représentation"
+        """Méthode d'affichage dans le Label de gauche des bornes de la zone de représentation.
+        Cette méthode étant appelée à chaque tracé de l'ensemble de Mandelbrot, et les précisions
+        d'affichage ne dépendant que des bornes, on en profite pour calculer ces précisions et
+        les stocker comme attributs pour utilisation par les autres méthodes.
+        """
         # Précisions d'affichage en fonction de la partie commune des bornes
-        prec_x = precision(xa, xb)
-        prec_y = precision(ya, yb)
+        self.prec_x = precision(xa, xb)
+        self.prec_y = precision(ya, yb)
         # Affichage des bornes
-        self.label_bornes.configure(text=f" x = [{xa:.{prec_x}f}, {xb:.{prec_x}f}], y = [{yb:.{prec_y}f}, {ya:.{prec_y}f}]")
+        self.label_bornes.configure(text=f" x = [{xa:.{self.prec_x}f}, {xb:.{self.prec_x}f}], y = [{yb:.{self.prec_y}f}, {ya:.{self.prec_y}f}]")
 
-    def affiche_coordonnees_souris(self, x, y, xa, xb, ya, yb):
+    def affiche_coordonnees_souris(self, x, y):
         "Méthode d'affichage dans le Label de droite des coordonnées réelles du point désigné par la souris dans le canevas"
-        # Précisions d'affichage en fonction de la partie commune des bornes
-        prec_x = precision(xa, xb)
-        prec_y = precision(ya, yb)
-        # Affichage des coordonnées de la souris
-        self.label_coord.configure(text=f"{x:.{prec_x}f}, {y:.{prec_y}f} ")
+        self.label_coord.configure(text=f"{x:.{self.prec_x}f}, {y:.{self.prec_y}f} ")
 
     def efface_coordonnees_souris(self):
         "Méthode effaçant dans le Label de droite le texte des coordonnées réelles du point désigné par la souris dans le canevas"
         self.label_coord.configure(text="")
 
-    def affiche_coordonnees_zoom(self, xaz, xbz, yaz, ybz, xa, xb, ya, yb):
-        # Précisions d'affichage en fonction de la partie commune des bornes
-        prec_x = precision(xa, xb)
-        prec_y = precision(ya, yb)
-        # Affichage des coordonnées du cadre de zoom
-        self.label_coord.configure(text=f" x = [{xaz:.{prec_x}f}, {xbz:.{prec_x}f}], y = [{ybz:.{prec_y}f}, {yaz:.{prec_y}f}]")
+    def affiche_coordonnees_zoom(self, xaz, xbz, yaz, ybz):
+        "Méthode d'affichage dans le Label de droite des coordonnées réelles du cadre de zoom créé par la souris dans le canevas"
+        self.label_coord.configure(text=f" x = [{xaz:.{self.prec_x}f}, {xbz:.{self.prec_x}f}], y = [{ybz:.{self.prec_y}f}, {yaz:.{self.prec_y}f}]")
 
 
 class Fenetre(Tk):
@@ -299,18 +296,14 @@ class Fenetre(Tk):
     def affiche_coordonnees_souris(self, px, py):
         """Méthode appelée par la callback de survol du canevas par la souris.
         Déduit du modèle les coordonnées réelles du point désigné par la souris
-        à partir de ses coordonnées en pixels px et py, récupère du modèle les
-        bornes de la zone de représentation puis appelle la méthode d'affichage
-        correspondante du widget de cadre de coordonnées.
+        à partir de ses coordonnées en pixels px et py puis appelle la méthode
+        d'affichage correspondante du widget de cadre de coordonnées.
         """
         # Calcul des coordonnées du point courant à partir du modèle
         x = self.mandel.zone.pix_to_x(px)
         y = self.mandel.zone.pix_to_y(py)
-        # Récupération des bornes dans le modèle
-        xa, xb = self.mandel.zone.A.x, self.mandel.zone.B.x
-        ya, yb = self.mandel.zone.A.y, self.mandel.zone.B.y
         # Affichage des coordonnées
-        self.cadre_coordonnees.affiche_coordonnees_souris(x, y, xa, xb, ya, yb)
+        self.cadre_coordonnees.affiche_coordonnees_souris(x, y)
 
     def efface_coordonnees_souris(self):
         """Méthode appelée par la callback de sortie de la souris du canevas.
@@ -321,18 +314,14 @@ class Fenetre(Tk):
     def affiche_coordonnees_zoom(self, pxaz, pxbz, pyaz, pybz):
         """Méthode appelée par la callback de déplacement de la souris dans le
         canevas, bouton appuyé. Déduit du modèle les coordonnées réelles du cadre
-        de zoom à partir de ses différentes coordonnées en pixels, récupère du modèle
-        les bornes de la zone de représentation puis appelle la méthode d'affichage
-        correspondante du widget de cadre de coordonnées.
+        de zoom à partir de ses différentes coordonnées en pixels puis appelle
+        la méthode d'affichage correspondante du widget de cadre de coordonnées.
         """
         # Calcul des coordonnées du cadre de zoom à partir du modèle
         xaz, xbz = self.mandel.zone.pix_to_x(pxaz), self.mandel.zone.pix_to_x(pxbz)
         yaz, ybz = self.mandel.zone.pix_to_y(pyaz), self.mandel.zone.pix_to_y(pybz)
-        # Récupération des bornes dans le modèle
-        xa, xb = self.mandel.zone.A.x, self.mandel.zone.B.x
-        ya, yb = self.mandel.zone.A.y, self.mandel.zone.B.y
         # Affichage des coordonnées du cadre de zoom
-        self.cadre_coordonnees.affiche_coordonnees_zoom(xaz, xbz, yaz, ybz, xa, xb, ya, yb)
+        self.cadre_coordonnees.affiche_coordonnees_zoom(xaz, xbz, yaz, ybz)
 
     def zoom_dezoom(self, bornes, type):
         # Modification du modèle
