@@ -159,6 +159,9 @@ class CanvasMandel(Canvas):
         des coordonnées réelles du point qu'elle désigne à partir de ses coordonnées en pixels dans
         le canevas.
         """
+        # Stockage de la position de la souris en pixels pour affichage immédiat de la position réelle ...
+        self.dernier_x, self.dernier_y = event.x, event.y # ... en cas de dezoom et absence de mouvement de la souris
+        # Appel de la méthode associée du contrôleur
         self.parent.affiche_coordonnees_souris(event.x, event.y)
 
     def sortie_canevas(self, event):
@@ -185,6 +188,8 @@ class CanvasMandel(Canvas):
         self.py2 = self.py1 + signe_y * self.K * taille_abs
         # Tracé du cadre
         self.coords(self.cadre_zoom, self.px1, self.py1, self.px2, self.py2)
+        # Stockage de la position de la souris en pixels pour affichage immédiat de la position réelle ...
+        self.dernier_x, self.dernier_y = event.x, event.y  # ... après le zoom et en absence de mouvement de la souris
         # On réordonne les valeurs des pixels pour avoir A et B temporaires aux bons endroits
         pxaz, pyaz = (min(self.px1, self.px2), min(self.py1, self.py2))  # sur l'image, A (point haut gauche) a les plus petites valeurs en pixels
         pxbz, pybz = (max(self.px1, self.px2), max(self.py1, self.py2))  # B (point bas droit) a les plus grandes valeurs en pixel
@@ -335,6 +340,8 @@ class Fenetre(Tk):
         # Tracé de l'ensemble et affichage des bornes
         self.canevas.retrace_complet(self.mandel.ensemble)
         self.affiche_bornes()
+        # On force l'affichage des coordonnées de la souris à partir de sa dernière position dans le cas où aucun événement n'est venu les mettre à jour
+        self.affiche_coordonnees_souris(self.canevas.dernier_x, self.canevas.dernier_y)
 
 
 def precision(x1, x2, log=False):
