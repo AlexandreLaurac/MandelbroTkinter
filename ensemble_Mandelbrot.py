@@ -236,8 +236,8 @@ class CadreCoordonnees(Frame):
         self.label_bornes = Label(self, font="Arial 10", background="white")
         self.label_bornes.pack(side=LEFT)
         # Label pour les coordonnées du point désigné par la souris
-        self.label_coord = Label(self, text="", anchor="e", font="Arial 10", background="white")
-        self.label_coord.pack(fill=X)
+        self.label_coord = Label(self, text="", justify="right", font="Arial 10", background="white")
+        self.label_coord.pack(side=RIGHT)
 
     def affiche_bornes(self, xa, xb, ya, yb):
         """Méthode d'affichage dans le Label de gauche des bornes de la zone de représentation.
