@@ -140,6 +140,8 @@ class CanvasMandel(Canvas):
         self.K = hauteur / largeur  # idem que dans l'objet zone de la classe Mandelbrot
         # Stockage des bornes de zoom en pixels pour le retour en arrière par ctrl-z
         self.stockage_bornes = []
+        # Variable d'état
+        self.zoom = False
         # Gestion des événements
         self.bind("<Motion>", self.survol_canevas)
         self.bind("<Leave>", self.sortie_canevas)
@@ -166,12 +168,14 @@ class CanvasMandel(Canvas):
 
     def sortie_canevas(self, event):
         """Callback de sortie de la souris du canevas conduisant à effacer le texte des coordonnées
-        réelles du point qu'elle désigne.
+        réelles du point qu'elle désigne (valable lorsque l'on n'est pas en train de zoomer).
         """
-        self.parent.efface_coordonnees_souris()
+        if not self.zoom:
+            self.parent.efface_coordonnees_souris()
 
     def clic(self, event):
         "Callback définissant le premier coin du cadre de zoom par clic de la souris"
+        self.zoom = True
         self.px1, self.py1 = event.x, event.y
         self.cadre_zoom = self.create_rectangle(self.px1, self.py1, self.px1, self.py1, outline='red', tags=CanvasMandel.etiquette_efface)
 
@@ -198,6 +202,7 @@ class CanvasMandel(Canvas):
 
     def relache(self, event):
         "Callback définissant le cadre de zoom définitif par relâchement de la souris"
+        self.zoom = False
         # On réordonne les valeurs des pixels pour avoir A et B définitifs aux bons endroits
         pxa, pya = (min(self.px1, self.px2), min(self.py1, self.py2))  # sur l'image, A (point haut gauche) a les plus petites valeurs en pixels
         pxb, pyb = (max(self.px1, self.px2), max(self.py1, self.py2))  # B (point bas droit) a les plus grandes valeurs en pixel
@@ -383,7 +388,7 @@ class Fenetre(Tk):
         self.mandel.calcul_ensemble()
         # Modification de l'affichage
         self.canevas.retrace_complet(self.mandel.ensemble)
-        self.affiche_bornes()                    
+        self.affiche_bornes()
         self.update_idletasks()  # Mise à jour de l'affichage pour avoir la bonne taille de 'label_bornes' dans 'cadre_coordonnees' et afficher correctement 'label_coord'
         self.affiche_coordonnees_souris(self.canevas.dernier_x, self.canevas.dernier_y)  # On force l'affichage des coordonnées de la souris à partir de sa dernière position (gestion du cas "absence d'événements")
 
