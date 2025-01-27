@@ -236,8 +236,10 @@ class CadreCoordonnees(Frame):
         self.label_bornes = Label(self, font="Arial 10", background="white")
         self.label_bornes.pack(side=LEFT)
         # Label pour les coordonnées du point désigné par la souris
-        self.label_coord = Label(self, text="", justify="right", font="Arial 10", background="white")
+        self.label_coord = Label(self, text="", justify= "right", font="Arial 10", background="white")
         self.label_coord.pack(side=RIGHT)
+        # Type de disposition
+        self.en_ligne = True
 
     def affiche_bornes(self, xa, xb, ya, yb):
         """Méthode d'affichage dans le Label de gauche des bornes de la zone de représentation.
@@ -251,17 +253,33 @@ class CadreCoordonnees(Frame):
         # Affichage des bornes
         self.label_bornes.configure(text=f" x = [{xa:.{self.prec_x}f}, {xb:.{self.prec_x}f}], y = [{yb:.{self.prec_y}f}, {ya:.{self.prec_y}f}]")
 
-    def affiche_coordonnees_souris(self, x, y):
+    def affiche_coordonnees_souris(self, x, y, taille_max):
         "Méthode d'affichage dans le Label de droite des coordonnées réelles du point désigné par la souris dans le canevas"
         self.label_coord.configure(text=f"{x:.{self.prec_x}f}, {y:.{self.prec_y}f} ")
+        self.maj_disposition(taille_max)
 
     def efface_coordonnees_souris(self):
         "Méthode effaçant dans le Label de droite le texte des coordonnées réelles du point désigné par la souris dans le canevas"
         self.label_coord.configure(text="")
+        # if self.en_ligne == False:
+        #     self.label_bornes.pack(side=LEFT)
+        #     self.label_coord.pack(side=RIGHT)
 
-    def affiche_coordonnees_zoom(self, xaz, xbz, yaz, ybz):
+    def affiche_coordonnees_zoom(self, xaz, xbz, yaz, ybz, taille_max):
         "Méthode d'affichage dans le Label de droite des coordonnées réelles du cadre de zoom créé par la souris dans le canevas"
         self.label_coord.configure(text=f" x = [{xaz:.{self.prec_x}f}, {xbz:.{self.prec_x}f}], y = [{ybz:.{self.prec_y}f}, {yaz:.{self.prec_y}f}]")
+        self.maj_disposition(taille_max)
+
+    def maj_disposition(self, taille_max):
+        taille_totale = self.label_bornes.winfo_width() + self.label_coord.winfo_width()
+        if self.en_ligne and taille_totale > taille_max:
+            self.label_bornes.pack(side=TOP, anchor="w")
+            self.label_coord.pack(side=TOP, anchor="e")
+            self.en_ligne = False
+        elif not self.en_ligne and taille_totale <= taille_max:
+            self.label_bornes.pack(side=LEFT)
+            self.label_coord.pack(side=RIGHT)
+            self.en_ligne = True
 
 
 class Fenetre(Tk):
@@ -308,7 +326,7 @@ class Fenetre(Tk):
         x = self.mandel.zone.pix_to_x(px)
         y = self.mandel.zone.pix_to_y(py)
         # Affichage des coordonnées
-        self.cadre_coordonnees.affiche_coordonnees_souris(x, y)
+        self.cadre_coordonnees.affiche_coordonnees_souris(x, y, self.canevas.winfo_width())
 
     def efface_coordonnees_souris(self):
         """Méthode appelée par la callback de sortie de la souris du canevas.
@@ -326,7 +344,7 @@ class Fenetre(Tk):
         xaz, xbz = self.mandel.zone.pix_to_x(pxaz), self.mandel.zone.pix_to_x(pxbz)
         yaz, ybz = self.mandel.zone.pix_to_y(pyaz), self.mandel.zone.pix_to_y(pybz)
         # Affichage des coordonnées du cadre de zoom
-        self.cadre_coordonnees.affiche_coordonnees_zoom(xaz, xbz, yaz, ybz)
+        self.cadre_coordonnees.affiche_coordonnees_zoom(xaz, xbz, yaz, ybz, self.canevas.winfo_width())
 
     def zoom_dezoom(self, bornes, type):
         # Modification du modèle
