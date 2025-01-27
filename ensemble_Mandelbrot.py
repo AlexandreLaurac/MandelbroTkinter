@@ -140,10 +140,12 @@ class CanvasMandel(Canvas):
         self.K = hauteur / largeur  # idem que dans l'objet zone de la classe Mandelbrot
         # Stockage des bornes de zoom en pixels pour le retour en arrière par ctrl-z
         self.stockage_bornes = []
-        # Variable d'état
-        self.zoom = False
+        # Variables d'état
+        self.souris_dedans = False  # souris dans le canevas ou non
+        self.zoom = False  # on est en train de dessiner un cadre de zoom ou non
         # Gestion des événements
         self.bind("<Motion>", self.survol_canevas)
+        self.bind("<Enter>", self.entree_canevas)
         self.bind("<Leave>", self.sortie_canevas)
         self.bind("<Button-1>", self.clic)
         self.bind("<Button1-Motion>", self.deplace)
@@ -155,6 +157,10 @@ class CanvasMandel(Canvas):
 
     def retire_bornes(self):
         return self.stockage_bornes.pop()
+
+    def entree_canevas(self, event):
+        "Callback d'entrée de la souris dans le canevas, mise à jour de l'état"
+        self.souris_dedans = True
 
     def survol_canevas(self, event):
         """Callback liée à l'événement de survol du canevas par la souris et conduisant à l'affichage
@@ -170,6 +176,7 @@ class CanvasMandel(Canvas):
         """Callback de sortie de la souris du canevas conduisant à effacer le texte des coordonnées
         réelles du point qu'elle désigne (valable lorsque l'on n'est pas en train de zoomer).
         """
+        self.souris_dedans = False
         if not self.zoom:
             self.parent.efface_coordonnees_souris()
 
@@ -389,8 +396,9 @@ class Fenetre(Tk):
         # Modification de l'affichage
         self.canevas.retrace_complet(self.mandel.ensemble)
         self.affiche_bornes()
-        self.update_idletasks()  # Mise à jour de l'affichage pour avoir la bonne taille de 'label_bornes' dans 'cadre_coordonnees' et afficher correctement 'label_coord'
-        self.affiche_coordonnees_souris(self.canevas.dernier_x, self.canevas.dernier_y)  # On force l'affichage des coordonnées de la souris à partir de sa dernière position (gestion du cas "absence d'événements")
+        if self.canevas.souris_dedans:  # if pour éviter d'afficher les précédentes coordonnées de la souris dans le cas "sortie du canevas puis ctrl-z"
+            self.update_idletasks()  # Mise à jour de l'affichage pour avoir la bonne taille de 'label_bornes' dans 'cadre_coordonnees' et afficher correctement 'label_coord'
+            self.affiche_coordonnees_souris(self.canevas.dernier_x, self.canevas.dernier_y)  # On force l'affichage des coordonnées de la souris à partir de sa dernière position (gestion du cas "absence d'événements")
 
 
 def precision(x1, x2, log=False):
