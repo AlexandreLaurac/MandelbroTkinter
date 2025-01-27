@@ -184,6 +184,7 @@ class CanvasMandel(Canvas):
         "Callback définissant le premier coin du cadre de zoom par clic de la souris"
         self.zoom = True
         self.px1, self.py1 = event.x, event.y
+        self.px2, self.py2 = self.px1, self.py1  # préparation du cas d'un cadre d'un seul pixel
         self.cadre_zoom = self.create_rectangle(self.px1, self.py1, self.px1, self.py1, outline='red', tags=CanvasMandel.etiquette_efface)
 
     def deplace(self, event):
@@ -210,13 +211,17 @@ class CanvasMandel(Canvas):
     def relache(self, event):
         "Callback définissant le cadre de zoom définitif par relâchement de la souris"
         self.zoom = False
-        # On réordonne les valeurs des pixels pour avoir A et B définitifs aux bons endroits
-        pxa, pya = (min(self.px1, self.px2), min(self.py1, self.py2))  # sur l'image, A (point haut gauche) a les plus petites valeurs en pixels
-        pxb, pyb = (max(self.px1, self.px2), max(self.py1, self.py2))  # B (point bas droit) a les plus grandes valeurs en pixel
-        # Ajout des bornes de zoom au stockage
-        self.ajoute_bornes((pxa, pxb, pya, pyb))
-        # Appel à la méthode de zoom du parent
-        self.parent.zoom_dezoom((pxa, pxb, pya), 1)
+        if self.px2 != self.px1 and self.py2 != self.py1 :  # On ne zoome que si le cadre n'est pas d'un seul pixel
+            # On réordonne les valeurs des pixels pour avoir A et B définitifs aux bons endroits
+            pxa, pya = (min(self.px1, self.px2), min(self.py1, self.py2))  # sur l'image, A (point haut gauche) a les plus petites valeurs en pixels
+            pxb, pyb = (max(self.px1, self.px2), max(self.py1, self.py2))  # B (point bas droit) a les plus grandes valeurs en pixel
+            # Ajout des bornes de zoom au stockage
+            self.ajoute_bornes((pxa, pxb, pya, pyb))
+            # Appel à la méthode de zoom du parent
+            self.parent.zoom_dezoom((pxa, pxb, pya), 1)
+        else:  # cadre d'un seul pixel (on n'a pas déplacé la souris ou on est revenu sur le pixel de départ)
+            print("Cadre de zoom réduit à un pixel, impossible de zoomer")
+            self.delete(self.cadre_zoom)
 
     def retour(self, event):
         try:
