@@ -242,7 +242,7 @@ class CadreCoordonnees(Frame):
         self.en_ligne = True
 
     def affiche_bornes(self, xa, xb, ya, yb):
-        """Méthode d'affichage dans le Label de gauche des bornes de la zone de représentation.
+        """Méthode d'affichage dans 'label_bornes' des bornes de la zone de représentation.
         Cette méthode étant appelée à chaque tracé de l'ensemble de Mandelbrot, et les précisions
         d'affichage ne dépendant que des bornes, on en profite pour calculer ces précisions et
         les stocker comme attributs pour utilisation par les autres méthodes.
@@ -253,30 +253,56 @@ class CadreCoordonnees(Frame):
         # Affichage des bornes
         self.label_bornes.configure(text=f" x = [{xa:.{self.prec_x}f}, {xb:.{self.prec_x}f}], y = [{yb:.{self.prec_y}f}, {ya:.{self.prec_y}f}]")
 
-    def affiche_coordonnees_souris(self, x, y, taille_max):
-        "Méthode d'affichage dans le Label de droite des coordonnées réelles du point désigné par la souris dans le canevas"
-        self.label_coord.configure(text=f"{x:.{self.prec_x}f}, {y:.{self.prec_y}f} ")
-        self.maj_disposition(taille_max)
+    def affiche_coordonnees_souris(self, x, y, largeur_max):
+        """Méthode d'affichage dans 'label_coord' des coordonnées réelles du point désigné par la souris dans le canevas
+        
+        Avant l'affichage des nouvelles coordonnées, on prépare la disposition des widgets 'label_bornes' et label_coord'.
+        'label_coord' faisant à peu près la moitié de 'label_bornes' lors de l'affichage des coordonnées de la souris,
+        c'est la valeur largeur_label_bornes + 0.5 x largeur_label_bornes = 1.5 x largeur_label_bornes (par rapport à la
+        largeur du canevas) qui dicte l'agencement des widgets, d'où le facteur 1.5 (augmenté à 1.55 pour prévoir une marge)
+        """
+        self.prepare_disposition(1.55, largeur_max)
+        self.label_coord.configure(text=f"x = {x:.{self.prec_x}f}, y = {y:.{self.prec_y}f} ")
 
     def efface_coordonnees_souris(self):
-        "Méthode effaçant dans le Label de droite le texte des coordonnées réelles du point désigné par la souris dans le canevas"
+        "Méthode effaçant dans 'label_coord' le texte des coordonnées réelles du point désigné par la souris dans le canevas"
         self.label_coord.configure(text="")
-        # if self.en_ligne == False:
-        #     self.label_bornes.pack(side=LEFT)
-        #     self.label_coord.pack(side=RIGHT)
 
-    def affiche_coordonnees_zoom(self, xaz, xbz, yaz, ybz, taille_max):
-        "Méthode d'affichage dans le Label de droite des coordonnées réelles du cadre de zoom créé par la souris dans le canevas"
-        self.label_coord.configure(text=f" x = [{xaz:.{self.prec_x}f}, {xbz:.{self.prec_x}f}], y = [{ybz:.{self.prec_y}f}, {yaz:.{self.prec_y}f}]")
-        self.maj_disposition(taille_max)
+    def affiche_coordonnees_zoom(self, xaz, xbz, yaz, ybz, largeur_max):
+        """Méthode d'affichage dans 'label_coord' des coordonnées réelles du cadre de zoom créé par la souris dans le canevas
+        
+        Avant l'affichage des nouvelles coordonnées, on prépare la disposition des widgets 'label_bornes' et label_coord'.
+        'label_coord' faisant à peu près la même largeur que 'label_bornes' lors de l'affichage des coordonnées du cadre de
+        zoom, c'est la valeur 2 x largeur_label_bornes (par rapport à la largeur du canevas) qui dicte l'agencement des widgets,
+        d'où le facteur 2 (augmenté à 2.05 pour prévoir une marge)
+        """
+        self.prepare_disposition(2.05, largeur_max)
+        self.label_coord.configure(text=f"x = [{xaz:.{self.prec_x}f}, {xbz:.{self.prec_x}f}], y = [{ybz:.{self.prec_y}f}, {yaz:.{self.prec_y}f}] ")
 
-    def maj_disposition(self, taille_max):
-        taille_totale = self.label_bornes.winfo_width() + self.label_coord.winfo_width()
-        if self.en_ligne and taille_totale > taille_max:
+    def prepare_disposition(self, facteur, largeur_max):
+        """Méthode permettant de préparer la disposition (en ligne ou en colonne) des widgets 'label_bornes'
+        et 'label_coord' dans ce widget en fonction de la largeur de 'label_bornes' et d'un facteur dépendant
+        de l'information à afficher dans 'label_coord'.
+
+        En effet, plutôt que de récupérer la largeur des widgets une fois dessinés et de réajuster l'agencement
+        si les deux widgets dépassent la largeur du canevas (ce qui provoque une mise à jour rapide et désagréable
+        de l'interface), on peut remarquer que 'label_coord' fait à peu près la moitié de la largeur de 'label_bornes'
+        lorsqu'on affiche les coordonnées de la souris et à peu près la même largeur dans le cas où l'on affiche
+        les coordonnées du cadre de zoom. On dispose donc d'une mesure de la largeur des deux widgets AVANT le tracé
+        du second widget qu'il convient de comparer à la largeur du canevas pour déterminer comment les afficher : si
+        la largeur totale des deux widgets est inférieure à celle du canevas, on les affiche en ligne ; si elle est
+        supérieure, on les affiche en colonne. Un attribut booléen permet de modifier l'agencement seulement lorsque
+        la largeur totale change de position par rapport à la largeur du canevas (passe de < à > ou de > à <) et pas
+        à chaque appel de fonction.
+        """
+        largeur_label_bornes = self.label_bornes.winfo_width()
+        # Disposition actuelle en ligne et largeur a priori des deux widgets qui dépasse celle du canevas => disposition en colonne
+        if self.en_ligne and facteur * largeur_label_bornes > largeur_max:
             self.label_bornes.pack(side=TOP, anchor="w")
             self.label_coord.pack(side=TOP, anchor="e")
             self.en_ligne = False
-        elif not self.en_ligne and taille_totale <= taille_max:
+        # Disposition actuelle en colonne et largeur a priori des deux widgets qui est inférieure à celle du canevas => disposition en ligne
+        elif not self.en_ligne and facteur * largeur_label_bornes <= largeur_max:
             self.label_bornes.pack(side=LEFT)
             self.label_coord.pack(side=RIGHT)
             self.en_ligne = True
@@ -355,11 +381,11 @@ class Fenetre(Tk):
             pxa, pxb, pya, pyb = bornes
             self.mandel.zone.maj_bornes_dezoom(pxa, pxb, pya, pyb)
         self.mandel.calcul_ensemble()
-        # Tracé de l'ensemble et affichage des bornes
+        # Modification de l'affichage
         self.canevas.retrace_complet(self.mandel.ensemble)
-        self.affiche_bornes()
-        # On force l'affichage des coordonnées de la souris à partir de sa dernière position dans le cas où aucun événement n'est venu les mettre à jour
-        self.affiche_coordonnees_souris(self.canevas.dernier_x, self.canevas.dernier_y)
+        self.affiche_bornes()                    
+        self.update_idletasks()  # Mise à jour de l'affichage pour avoir la bonne taille de 'label_bornes' dans 'cadre_coordonnees' et afficher correctement 'label_coord'
+        self.affiche_coordonnees_souris(self.canevas.dernier_x, self.canevas.dernier_y)  # On force l'affichage des coordonnées de la souris à partir de sa dernière position (gestion du cas "absence d'événements")
 
 
 def precision(x1, x2, log=False):
