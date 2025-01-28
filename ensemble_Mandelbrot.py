@@ -126,6 +126,21 @@ class Mandelbrot():
 #---------------------------------------- Vues ----------------------------------------#
 
 class CanvasMandel(Canvas):
+    """Widget de type Canvas spécialisé pour représenter l'ensemble de Mandelbrot.
+
+    Le widget possède principalement deux méthodes de tracé d'un tel ensemble.
+    Il possède également des méthodes servant de callbacks liées à différents événements
+    se produisant sur lui :
+    - callbacks liées au déplacement de la souris bouton non appuyé (entrée, sortie, survol),
+      qui conduisent à l'affichage dans le cadre de coordonnées de la position du pointeur
+      de la souris relativement à la zone de représentation
+    - callbacks liées au déplacement de la souris bouton appuyé (clic, déplacement, relachement)
+      conduisant à définir un cadre de zoom et à retracer l'ensemble de Mandelbrot sur une
+      nouvelle zone (le cadre de zoom respecte le ratio des dimensions du canevas)
+    - callback liée à la combinaison de touches "Control-z" permettant de revenir à la zone
+      de représentation précédente (le widget stocke les coordonnées en pixels des cadres de
+      zoom successifs pour cela)
+    """
 
     etiquette_efface = "items_a_effacer"
     etiquette_garde = "items_a_garder"
@@ -190,7 +205,8 @@ class CanvasMandel(Canvas):
     def deplace(self, event):
         """Callback définissant le deuxième coin du cadre de zoom par déplacement de la souris et
         conduisant à l'affichage des coordonnées réelles de ce cadre à partir de ses différentes
-        coordonnées en pixels dans le canevas.
+        coordonnées en pixels dans le canevas. Le cadre de zoom respecte le ratio des dimensions
+        du canevas.
         """
         # Abscisse du deuxième point obtenu par déplacement de la souris
         self.px2 = event.x
@@ -224,6 +240,7 @@ class CanvasMandel(Canvas):
             self.delete(self.cadre_zoom)
 
     def retour(self, event):
+        "Callback permettant de revenir à la zone de représentation précédente"
         try:
             bornes = self.retire_bornes()
             self.parent.zoom_dezoom(bornes, 2)
@@ -231,7 +248,12 @@ class CanvasMandel(Canvas):
             print("Pas de dézoom possible")
 
     def trace_ensemble(self, ensemble):
-        "Fonction de tracé effectif de l'ensemble de Mandelbrot"
+        """Fonction de tracé effectif de l'ensemble de Mandelbrot.
+        
+        Le tracé se fait pixel par pixel avec ajout d'une ligne dans un pixel donné
+        du canevas si le point correspondant de la zone de représentation fait partie
+        de l'ensemble de Mandelbrot (si la suite de récurrence a convergé pour ce point)
+        """
         for py in range(self.hauteur):
             for px in range(self.largeur):
                 if ensemble[py][px] == True:
@@ -239,13 +261,24 @@ class CanvasMandel(Canvas):
 
     def retrace_complet(self, ensemble):
         """Fonction de retracé du canevas : suppression des éléments marqués comme tels (ensemble
-        courant, cadre de zoom), tracé d'un nouvel ensemble, et surélévation des éléments à conserver
+        courant, cadre de zoom), tracé d'un nouvel ensemble.
         """
         self.delete(CanvasMandel.etiquette_efface)
         self.trace_ensemble(ensemble)
 
 
 class CadreCoordonnees(Frame):
+    """Widget de type Frame contenant deux Label destinés à afficher des coordonnées.
+
+    Les coordonnées sont les suivantes :
+    - coordonnées de la zone de représentation dans le premier Label
+    - coordonnées du pointeur de la souris survolant le canevas ou du cadre de zoom tracé sur celui-ci
+      dans le deuxième Label.
+
+    Les deux Label sont affichés en ligne si leur largeur totale ne dépasse pas celle du canevas situé
+    au-dessus du cadre et en colonne sinon (l'un au-dessous de l'autre, ancrés respectivement à gauche
+    et à droite).
+    """
 
     def __init__(self, parent):
         Frame.__init__(self, parent, background="white")
@@ -326,6 +359,14 @@ class CadreCoordonnees(Frame):
 
 
 class Fenetre(Tk):
+    """Fenêtre principale de l'application jouant également le rôle de contrôleur.
+
+    La fenêtre possède un canevas de type CanvasMandel et un cadre de type CadreCoordonnees.
+    Comme contrôleur, elle possède une instance de classe Mandelbrot et des méthodes appelées
+    par les callbacks du canevas visant à modifier le modèle et mettre à jour l'interface :
+    zoom ou dézoom de l'ensemble de Mandelbrot dans la zone de représentation et affichage
+    de diverses coordonnées (voir CadreCoordonnees).
+    """
 
     def __init__(self, largeur, hauteur, xa, xb, ya, n_iter):
         Tk.__init__(self)
