@@ -248,16 +248,31 @@ class CanvasMandel(Canvas):
             print("Pas de dézoom possible")
 
     def trace_ensemble(self, ensemble):
-        """Fonction de tracé effectif de l'ensemble de Mandelbrot.
-        
-        Le tracé se fait pixel par pixel avec ajout d'une ligne dans un pixel donné
-        du canevas si le point correspondant de la zone de représentation fait partie
-        de l'ensemble de Mandelbrot (si la suite de récurrence a convergé pour ce point)
+        """Méthode déclenchant le tracé de l'ensemble de Mandelbrot.
+        L'affichage complet est scindé en affichages successifs des différentes
+        lignes du canevas, chaque étape d'affichage étant déclenchée par un événement 
+        temporel programmé par l'appel à la méthode after. Le procédé permet de ne
+        pas bloquer l'interface pendant le tracé. Voir :
+        https://tkdocs.com/tutorial/eventloop.html#timer
+        La méthode courante sert de déclencheur à l'ensemble des appels de tracé.
         """
-        for py in range(self.hauteur):
+        self.trace_ensemble_partiel(ensemble, 0)
+
+    def trace_ensemble_partiel(self, ensemble, py):
+        """Affichage partiel de l'ensemble de Mandelbrot pour une ligne du canevas donnée.
+        Pour chacune, le tracé se fait toujours pixel par pixel avec ajout d'une ligne
+        dans un pixel donné du canevas si le point correspondant de la zone de représentation
+        fait partie de l'ensemble de Mandelbrot (si la suite de récurrence a convergé pour ce
+        point).
+        """
+        if py < self.hauteur:
+            # Tracé de la ligne courante
             for px in range(self.largeur):
                 if ensemble[py][px] == True:
                     self.create_line(px, py, px+1, py, tags=CanvasMandel.etiquette_efface)
+            # Programmation de l'appel de la méthode courante pour la ligne suivante du canevas dans 1 ms
+            self.after(1, lambda: self.trace_ensemble_partiel(ensemble, py+1))
+
 
     def retrace_complet(self, ensemble):
         """Fonction de retracé du canevas : suppression des éléments marqués comme tels (ensemble
