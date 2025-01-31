@@ -1,6 +1,7 @@
 from tkinter import *
 from math import sqrt, copysign
 import sys, getopt
+import time
 
 
 #---------------------------------------- Modèle ----------------------------------------#
@@ -248,19 +249,30 @@ class CanvasMandel(Canvas):
             print("Pas de dézoom possible")
 
     def trace_ensemble(self, ensemble):
-        """Fonction de tracé effectif de l'ensemble de Mandelbrot.
+        """Méthode de tracé effectif de l'ensemble de Mandelbrot.
         
-        Le tracé se fait pixel par pixel avec ajout d'une ligne dans un pixel donné
-        du canevas si le point correspondant de la zone de représentation fait partie
-        de l'ensemble de Mandelbrot (si la suite de récurrence a convergé pour ce point)
+        Méthode améliorée de tracé de l'ensemble : tracé ligne par ligne du canevas avec, pour chaque
+        ligne, détermination des pixels contigus qui appartiennent à l'ensemble. Ils sont alors tracés
+        d'une traite.
+
+        Il n'est paradoxalement pas plus efficace d'appliquer le même traitement aux points contigus qui
+        divergent (les blancs) qu'aux points contigus qui convergent (les noirs) car cela ajoute un test
+        supplémentaire par tour de boucle pour décider s'il faut faire un tracé ou pas.
         """
         for py in range(self.hauteur):
-            for px in range(self.largeur):
-                if ensemble[py][px] == True:
-                    self.create_line(px, py, px+1, py, tags=CanvasMandel.etiquette_efface)
+            # Parcours d'une ligne donnée
+            px = 0
+            while px < self.largeur:
+                nb_points = 1  # à la fois nombre de points contigus et incrément de la boucle
+                if ensemble[py][px] == True:  # le pixel courant correspond à un point de l'ensemble de Mandelbrot
+                    while px+nb_points < self.largeur and ensemble[py][px+nb_points] == True:  # on vérifie si les pixels situés après en font également partie
+                        nb_points += 1  # et on compte leur nombre total
+                    self.create_line(px, py, px+nb_points, py, tags=CanvasMandel.etiquette_efface)  # on trace une ligne noire pour tous les pixels concernés                    
+                    nb_points += 1  # on a quitté la boucle précédente parce que le pixel suivant ne faisait pas partie de l'ensemble, inutile d'aller l'examiner (ou alors parce qu'on a atteint la fin de la ligne, mais alors cette affectation n'a pas d'effet)
+                px += nb_points  # on se déplace du nombre de points trouvés (nb_points vaut 1 même si on a trouvé aucun point)
 
     def retrace_complet(self, ensemble):
-        """Fonction de retracé du canevas : suppression des éléments marqués comme tels (ensemble
+        """Méthode de retracé du canevas : suppression des éléments marqués comme tels (ensemble
         courant, cadre de zoom), tracé d'un nouvel ensemble.
         """
         self.delete(CanvasMandel.etiquette_efface)
