@@ -5,6 +5,11 @@ Cette application graphique, écrite en Python et utilisant le paquet Tkinter, r
 <img src="illustration.png" width="500"/>
 
 
+### Lancement de l'application
+
+Il convient d'installer la bibliothèque Numpy (`apt install ^python3-numpy.*`, sous Ubuntu), puis taper `python ensemble_mandelbrot.py` en ligne de commande (voir plus bas pour des options).
+
+
 ### Historique
 
 J'ai écrit la première version de ce programme en 2020 suite à mon apprentissage du langage Python et à ma découverte du paquet Tkinter, et en raison de mon intérêt pour les fractales (le tracé de l'ensemble de Mandelbrot est un peu mon _hello-world_ de l'apprentissage de toute bibliothèque graphique). Le but était non seulement l'affichage de l'ensemble mais aussi et surtout de permettre d'explorer cette fractale grâce à une fonctionnalité de zoom. Cela a nécessité la gestion de plusieurs événements (clic initial, déplacement de la souris bouton appuyé, relâchement du bouton) et le calcul de nouvelles coordonnées de représentation à partir du cadre de zoom dessiné.
@@ -34,7 +39,7 @@ Les fonctionnalités de l'application sont les suivantes :
 ### Caractéristiques
 
 L'application possède les caractéristiques suivantes :
-- le motif de conception mis en oeuvre est un motif MVC simplifié (voir le diagramme de classes dans le fichier "diagramme_classes.jpg") : la classe d'interface définissant la fenêtre principale joue également le rôle de contrôleur. En effet, étant donné la simplicité du modèle et le nombre réduit d'appels à celui-ci, utiliser un contrôleur n'aurait fait qu'ajouter un niveau de classe supplémentaire alourdissant les appels de méthodes
+- le motif de conception mis en oeuvre est un motif MVC simplifié (voir le diagramme de classes dans le fichier "diagramme_classes.png") : la classe d'interface définissant la fenêtre principale joue également le rôle de contrôleur. En effet, étant donné la simplicité du modèle et le nombre réduit d'appels à celui-ci, utiliser un contrôleur n'aurait fait qu'ajouter un niveau de classe supplémentaire alourdissant les appels de méthodes
 - le modèle consiste en une classe Mandelbrot possédant une sous-classe modélisant la zone de représentation (coordonnées, image en pixels sous-jacente, etc.) et une méthode de calcul de l'ensemble utilisant la bibliothèque Numpy
 - les vues sont les suivantes : une classe pour la fenêtre principale, une autre définissant le canevas de dessin étendant les capacités du widget Canvas dont elle dérive pour l'affichage de l'ensemble et le tracé d'un cadre de zoom, un widget pour l'affichage des coordonnées
 - le calcul de l'ensemble de Mandelbrot et son affichage ont été optimisés pour donner une application plus réactive. Le calcul n'est plus fait pixel par pixel avec boucle d'itération pour chaque, mais matriciellement, la boucle d'itération calculant à chaque tour un terme de la suite pour l'ensemble des pixels. De même, l'affichage ne se fait plus non plus pixel par pixel mais, pour une ligne donnée, par tracé global des pixels contigus de l'ensemble.
