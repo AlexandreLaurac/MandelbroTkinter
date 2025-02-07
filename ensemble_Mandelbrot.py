@@ -1,7 +1,7 @@
 from tkinter import *
 import numpy as np
 from math import sqrt, copysign
-import sys, getopt
+import argparse, textwrap
 import time
 
 
@@ -517,67 +517,67 @@ def precision(x1, x2, log=False):
 
 #---------------------------------- Programme principal ----------------------------------#
 
-def help():
-    print("""
-    Utilisation : ensemble_mandelbrot.py [-l <valeur_l>] [-h <valeur_h>] [-n <valeur_n>]
-    -l, -h : largeur et hauteur du cadre de représentation en pixels
-             si l'une des deux options est absente, la grandeur associée prend la valeur attribuée à l'autre option
-             si les deux options sont absentes, largeur et hauteur prennent la valeur par défaut de 800 pixels
-    -n : nombre d'itérations maximal dans le calcul de la suite définissant l'ensemble de Mandelbrot
-         valeur par défaut : 100 itérations
-    """)
+def main():
 
-def help_exit():
-    help()
-    sys.exit(2)
+    #---- Valeurs par défaut des paramètres ----#
 
-
-def main(argv):
-
-    # Valeurs par défaut des paramètres
     largeur = hauteur = 800
     n_iter = 100
     xa, ya = (-2.0, 1.5)  # point haut gauche 
     xb = 1.0              # abscisse du point bas droite
 
-    # Récupération des options de la ligne de commande
-    try:
-        options_et_valeurs, _ = getopt.getopt(argv, "n:l:h:", ["help"])
-    except getopt.GetoptError as err:
-        print(err)
-        help_exit()
 
-    # Récupération des valeurs
-    options = [o for o, _ in options_et_valeurs]
-    for option, valeur in options_et_valeurs:
-        if option == "--help":
-            help_exit()
-        elif option == '-l':
-            try:
-                largeur = int(valeur)
-                if '-h' not in options:
-                    hauteur = largeur
-            except:
-                print("Mauvaise valeur pour l'option '-l'")
-                help_exit()
-        elif option == '-h':
-            try:
-                hauteur = int(valeur)
-                if '-l' not in options:
-                    largeur = hauteur
-            except:
-                print("Mauvaise valeur pour l'option '-h'")
-                help_exit()
-        elif option == '-n':
-            try:
-                n_iter = int(valeur)
-            except:
-                print("Mauvaise valeur pour l'option '-n'")
-                help_exit()
+    #---------- Parsing des arguments ----------#
 
-    # Lancement de l'application
+    # Messages d'aide
+    message_aide_hauteur = textwrap.dedent("""\
+    Hauteur du cadre de représentation en pixels
+    Si l'option est absente, et que l'option \"-l\" est définie, prend la valeur attribuée à celle-ci
+
+    """)
+    message_aide_largeur = textwrap.dedent("""\
+    Largeur du cadre de représentation en pixels
+    Si l'option est absente, et que l'option \"-h\" est définie, prend la valeur attribuée à celle-ci
+
+    Si les deux options "-h" et "-l" sont absentes, largeur et hauteur prennent la valeur par défaut de 800 pixels
+
+    """)
+    message_aide_iteration = textwrap.dedent("""\
+    Nombre d'itérations dans le calcul de la suite de récurrence définissant l'ensemble de Mandelbrot
+    Valeur par défaut : 100 itérations
+
+    """)
+
+    # Parser
+    parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter, add_help=False)
+
+    # Ajouts des options au parser
+    parser.add_argument("--help", action="store_true", help="Affiche ce message et s'arrête\n ")
+    parser.add_argument("-h", type=int, help=message_aide_hauteur)
+    parser.add_argument("-l", type=int, help=message_aide_largeur)
+    parser.add_argument("-n", type=int, help=message_aide_iteration, default=100)
+
+    # Parsing
+    args = parser.parse_args()
+
+    # Parsing supplémentaire
+    if args.help:  # L'option help est présente
+        parser.print_help()
+        parser.exit(2)
+    if args.h and args.l:  # Les options hauteur et largeur toutes les deux définies
+        hauteur, largeur = args.h, args.l
+    elif args.h and not args.l:  # Seule l'option hauteur est définie
+        hauteur = largeur = args.h
+    elif args.l and not args.h:  # Seule l'option largeur est définie
+        largeur = hauteur = args.l
+    else :  # Aucune des deux options n'est définie
+        largeur = hauteur = 800
+    n_iter = args.n
+
+    #-------- Lancement de l'application --------#
+
     Fenetre(largeur, hauteur, xa, xb, ya, n_iter).lancement()
 
 
 if __name__ == "__main__":
-    main(sys.argv[1:])
+    main()
